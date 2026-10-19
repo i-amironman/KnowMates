@@ -120,23 +120,11 @@ func (s *Server) postVerifyResend(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 		return
 	}
-	plain, hash, err := newVerifyPlain()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+	if s.publicHost == "" {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	expires := time.Now().Add(verifyTokenTTL)
-	if err := s.verifyTokens.ReplaceEmailToken(r.Context(), uid, hash, expires); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
-		return
-	}
-	link := "https://" + s.publicHost + "/v1/auth/verify?token=" + plain
-	subject := "Verify your KnowMates email"
-	text := "Open this link within 24 hours to verify your email:\n\n" + link + "\n"
-	if err := s.mail.Send(r.Context(), email, subject, text); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
-		return
-	}
+	s.sendVerificationEmail(r.Context(), uid, email)
 	if s.redis != nil {
 		_ = s.redis.Set(r.Context(), key, "1", verifyResendCooldown).Err()
 	}
