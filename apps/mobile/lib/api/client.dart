@@ -42,6 +42,10 @@ class ApiClient {
     return _send('PUT', path, body: body, auth: true);
   }
 
+  Future<http.Response> delete(String path) {
+    return _send('DELETE', path, auth: true);
+  }
+
   Future<http.Response> _send(
     String method,
     String path, {
@@ -86,6 +90,8 @@ class ApiClient {
         return _http.patch(uri, headers: headers, body: body);
       case 'PUT':
         return _http.put(uri, headers: headers, body: body);
+      case 'DELETE':
+        return _http.delete(uri, headers: headers);
       default:
         throw ArgumentError('unsupported method $method');
     }

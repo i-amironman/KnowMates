@@ -40,6 +40,59 @@ class _PersonScreenState extends State<PersonScreen> {
     super.dispose();
   }
 
+  Future<void> _blockUser() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Block this person?'),
+        content: const Text('They will not appear in discovery and cannot request you.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Block')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+    final resp = await widget.client.post('/v1/blocks', body: {'userId': widget.person.id});
+    if (!mounted) {
+      return;
+    }
+    if (resp.statusCode == 204) {
+      Navigator.of(context).pop();
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(apiErrorMessage(resp) ?? 'Could not block.')),
+    );
+  }
+
+  Future<void> _reportUser() async {
+    final result = await showDialog<({String reason, String details})>(
+      context: context,
+      builder: (ctx) => _ReportDialog(),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+    final resp = await widget.client.post('/v1/reports', body: {
+      'userId': widget.person.id,
+      'reason': result.reason,
+      'details': result.details,
+    });
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          resp.statusCode == 204 ? 'Report submitted.' : (apiErrorMessage(resp) ?? 'Could not report.'),
+        ),
+      ),
+    );
+  }
+
   Future<void> _requestSession() async {
     final goal = _goalCtrl.text.trim();
     final skillId = _skillId ?? widget.learnSkillId;
@@ -77,6 +130,21 @@ class _PersonScreenState extends State<PersonScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         title: Text(person.displayName),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'block') {
+                _blockUser();
+              } else if (value == 'report') {
+                _reportUser();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'block', child: Text('Block')),
+              PopupMenuItem(value: 'report', child: Text('Report')),
+            ],
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -209,6 +277,58 @@ class _LargeAvatar extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+}
+
+class _ReportDialog extends StatefulWidget {
+  @override
+  State<_ReportDialog> createState() => _ReportDialogState();
+}
+
+class _ReportDialogState extends State<_ReportDialog> {
+  String _reason = 'other';
+  final _detailsCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _detailsCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Report'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            value: _reason,
+            decoration: const InputDecoration(labelText: 'Reason'),
+            items: const [
+              DropdownMenuItem(value: 'harassment', child: Text('Harassment')),
+              DropdownMenuItem(value: 'spam', child: Text('Spam')),
+              DropdownMenuItem(value: 'safety', child: Text('Safety')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (v) => setState(() => _reason = v ?? 'other'),
+          ),
+          TextField(
+            controller: _detailsCtrl,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(labelText: 'Details (optional)'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, (reason: _reason, details: _detailsCtrl.text.trim())),
+          child: const Text('Submit'),
+        ),
+      ],
     );
   }
 }
