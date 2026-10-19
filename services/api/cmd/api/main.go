@@ -8,6 +8,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"knowmates/services/api/internal/avatar"
 	apihttp "knowmates/services/api/internal/http"
 	"knowmates/services/api/internal/store"
 )
@@ -30,6 +31,10 @@ func main() {
 		deps.Users = st
 		deps.SignIn = st
 		deps.Sessions = st
+		deps.Profiles = st
+	}
+	if dir := os.Getenv("ASSET_DIR"); dir != "" {
+		deps.Avatars = &avatar.DiskStore{Dir: dir, PublicBase: os.Getenv("PUBLIC_BASE")}
 	}
 	if sec := os.Getenv("AUTH_SECRET"); sec != "" {
 		deps.Secret = []byte(sec)
