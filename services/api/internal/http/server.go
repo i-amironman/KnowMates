@@ -7,15 +7,17 @@ import (
 
 type Server struct {
 	mux *http.ServeMux
-	dsn string
+	dsn   string
+	users Users
 }
 
-func NewServer(store any) *Server {
-	_ = store
+func NewServer(users Users) *Server {
 	s := &Server{
-		mux: http.NewServeMux(),
-		dsn: os.Getenv("DATABASE_URL"),
+		mux:   http.NewServeMux(),
+		dsn:   os.Getenv("DATABASE_URL"),
+		users: users,
 	}
+	s.mux.HandleFunc("POST /v1/auth/signup", s.signUp)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
