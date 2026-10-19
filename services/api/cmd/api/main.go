@@ -35,6 +35,7 @@ func main() {
 		deps.Skills = st
 		deps.Discover = st
 		deps.Requests = st
+		deps.Bookings = st
 		if readDSN := os.Getenv("DATABASE_READ_URL"); readDSN != "" {
 			if err := st.AttachReadPool(ctx, readDSN); err != nil {
 				log.Fatal(err)

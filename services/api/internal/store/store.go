@@ -23,7 +23,10 @@ var (
 	ErrRefreshExpired  = errors.New("store: refresh expired")
 	ErrForbidden       = errors.New("store: forbidden")
 	ErrConflict        = errors.New("store: conflict")
-	ErrNoSuchRequest   = errors.New("store: request not found")
+	ErrNoSuchRequest         = errors.New("store: request not found")
+	ErrNoSuchSession         = errors.New("store: session not found")
+	ErrInsufficientCredits   = errors.New("store: insufficient credits")
+	ErrBadMeetingURL         = errors.New("store: bad meeting url")
 )
 
 type Store struct {
