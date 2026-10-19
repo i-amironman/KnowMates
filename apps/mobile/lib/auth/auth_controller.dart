@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../api/client.dart';
+import '../push/device_token.dart';
 
 class SignUpInput {
   const SignUpInput({
@@ -80,6 +81,7 @@ class AuthController extends ChangeNotifier {
     _accessToken = tokens?.access;
     if (_accessToken != null) {
       await refreshProfileReady();
+      await registerDeviceToken(_client);
     }
     _bootstrapped = true;
     notifyListeners();
@@ -108,6 +110,7 @@ class AuthController extends ChangeNotifier {
     if (response.statusCode == 201) {
       await _storePairFromBody(response.body);
       _profileReady = false;
+      await registerDeviceToken(_client);
       notifyListeners();
       return null;
     }
@@ -125,6 +128,7 @@ class AuthController extends ChangeNotifier {
     if (response.statusCode == 200) {
       await _storePairFromBody(response.body);
       await refreshProfileReady();
+      await registerDeviceToken(_client);
       return null;
     }
     return apiErrorMessage(response);

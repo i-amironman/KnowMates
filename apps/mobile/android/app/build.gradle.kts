@@ -68,3 +68,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// Place Firebase `google-services.json` here locally (gitignored). Download from
+// Firebase console → Project settings → Your apps → Android `app.knowmates`.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}

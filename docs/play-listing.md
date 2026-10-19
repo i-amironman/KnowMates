@@ -63,4 +63,4 @@ Upload to **Internal testing**, add tester Google accounts, install via Play opt
 ## Firebase (Spark / free)
 
 - Enable **Cloud Messaging** only. Do not enable Auth, Firestore, or Functions; do not upgrade to Blaze.
-- App: add `google-services.json` locally (gitignored). Server: service-account JSON path in `FCM_CREDENTIALS_FILE` (gitignored).
+- App: download `google-services.json` from Firebase (Cloud Messaging enabled, package `app.knowmates`) and save as **`apps/mobile/android/app/google-services.json`** (gitignored — never commit). Rebuild the release bundle after adding it. Server: service-account JSON path in `FCM_CREDENTIALS_FILE` (gitignored).
