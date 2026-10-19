@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -231,6 +232,46 @@ func (s *Store) RotateRefresh(ctx context.Context, tokenHash, newHash string, ne
 }
 
 // RevokeRefresh sets revoked_at on the matching refresh row (sign-out).
+type CallMessage struct {
+	ID        uuid.UUID `json:"id"`
+	From      uuid.UUID `json:"from"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (s *Store) InsertCallMessage(ctx context.Context, sessionID, sender uuid.UUID, body string) (uuid.UUID, time.Time, error) {
+	var id uuid.UUID
+	var created time.Time
+	err := s.pool.QueryRow(ctx,
+		`INSERT INTO session_messages (id, session_id, sender_id, body)
+		 VALUES (gen_random_uuid(), $1, $2, $3)
+		 RETURNING id, created_at`,
+		sessionID, sender, body).Scan(&id, &created)
+	return id, created, err
+}
+
+func (s *Store) CallHistory(ctx context.Context, sessionID uuid.UUID) ([]CallMessage, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, sender_id, body, created_at FROM (
+			SELECT id, sender_id, body, created_at
+			FROM session_messages WHERE session_id = $1
+			ORDER BY created_at DESC LIMIT 100
+		) sub ORDER BY created_at ASC`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []CallMessage
+	for rows.Next() {
+		var m CallMessage
+		if err := rows.Scan(&m.ID, &m.From, &m.Body, &m.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) RevokeRefresh(ctx context.Context, userID, tokenHash string) error {
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE refresh_tokens SET revoked_at = now()

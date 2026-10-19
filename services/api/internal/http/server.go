@@ -18,6 +18,7 @@ type Deps struct {
 	Requests RequestStore
 	Bookings BookingStore
 	Safety   SafetyStore
+	Calls    CallStore
 	Avatars  avatar.AvatarStore
 	Secret   []byte
 	Redis    RedisClient
@@ -35,6 +36,7 @@ type Server struct {
 	requests      RequestStore
 	bookings      BookingStore
 	safety        SafetyStore
+	calls         CallStore
 	avatars       avatar.AvatarStore
 	authSecret    []byte
 	redis         RedisClient
@@ -54,6 +56,7 @@ func NewServer(d Deps) *Server {
 		requests:      d.Requests,
 		bookings:      d.Bookings,
 		safety:        d.Safety,
+		calls:         d.Calls,
 		avatars:       d.Avatars,
 		authSecret:    d.Secret,
 		redis:         d.Redis,
@@ -79,6 +82,8 @@ func NewServer(d Deps) *Server {
 	s.mux.HandleFunc("POST /v1/sessions/{id}/complete", s.WithUser(s.completeSession))
 	s.mux.HandleFunc("POST /v1/sessions/{id}/cancel", s.WithUser(s.cancelSession))
 	s.mux.HandleFunc("POST /v1/sessions/{id}/reviews", s.WithUser(s.postSessionReview))
+	s.mux.HandleFunc("POST /v1/sessions/{id}/call/ticket", s.WithUser(s.postCallTicket))
+	s.mux.HandleFunc("GET /v1/sessions/{id}/call", s.WithUser(s.getCallWebSocket))
 	s.mux.HandleFunc("GET /v1/wallet", s.WithUser(s.getWallet))
 	s.mux.HandleFunc("POST /v1/me/avatar", s.WithUser(s.postAvatar))
 	s.mux.HandleFunc("DELETE /v1/me", s.WithUser(s.deleteMe))

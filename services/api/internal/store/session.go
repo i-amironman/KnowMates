@@ -129,6 +129,10 @@ func (s *Store) Schedule(ctx context.Context, requestID, actor uuid.UUID, start,
 	return s.loadSession(ctx, sessID)
 }
 
+func (s *Store) GetSession(ctx context.Context, id uuid.UUID) (Session, error) {
+	return s.loadSession(ctx, id)
+}
+
 func (s *Store) loadSession(ctx context.Context, id uuid.UUID) (Session, error) {
 	row := s.pool.QueryRow(ctx, `
 		SELECT id, request_id, learner_id, teacher_id, skill_id, starts_at, ends_at, meeting_url, status, learner_done, teacher_done
