@@ -15,6 +15,7 @@ type Deps struct {
 	Profiles ProfileStore
 	Skills   SkillsCatalog
 	Discover DiscoverStore
+	Requests RequestStore
 	Avatars  avatar.AvatarStore
 	Secret   []byte
 	Redis    RedisClient
@@ -29,6 +30,7 @@ type Server struct {
 	profiles      ProfileStore
 	skills        SkillsCatalog
 	discover      DiscoverStore
+	requests      RequestStore
 	avatars       avatar.AvatarStore
 	authSecret    []byte
 	redis         RedisClient
@@ -45,6 +47,7 @@ func NewServer(d Deps) *Server {
 		profiles:   d.Profiles,
 		skills:        d.Skills,
 		discover:      d.Discover,
+		requests:      d.Requests,
 		avatars:       d.Avatars,
 		authSecret:    d.Secret,
 		redis:         d.Redis,
@@ -60,6 +63,10 @@ func NewServer(d Deps) *Server {
 	s.mux.HandleFunc("PUT /v1/me/availability", s.WithUser(s.putAvailability))
 	s.mux.HandleFunc("GET /v1/skills", s.WithUser(s.getSkills))
 	s.mux.HandleFunc("GET /v1/discover", s.WithUser(s.getDiscover))
+	s.mux.HandleFunc("POST /v1/requests", s.WithUser(s.postRequest))
+	s.mux.HandleFunc("POST /v1/requests/{id}/accept", s.WithUser(s.acceptRequest))
+	s.mux.HandleFunc("POST /v1/requests/{id}/decline", s.WithUser(s.declineRequest))
+	s.mux.HandleFunc("POST /v1/requests/{id}/cancel", s.WithUser(s.cancelRequest))
 	s.mux.HandleFunc("POST /v1/me/avatar", s.WithUser(s.postAvatar))
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

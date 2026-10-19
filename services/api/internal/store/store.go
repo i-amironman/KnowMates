@@ -21,6 +21,9 @@ var (
 	ErrNoSuchRefresh   = errors.New("store: refresh not found")
 	ErrRefreshRevoked  = errors.New("store: refresh revoked reuse")
 	ErrRefreshExpired  = errors.New("store: refresh expired")
+	ErrForbidden       = errors.New("store: forbidden")
+	ErrConflict        = errors.New("store: conflict")
+	ErrNoSuchRequest   = errors.New("store: request not found")
 )
 
 type Store struct {
