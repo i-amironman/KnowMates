@@ -29,15 +29,7 @@ class WelcomeScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       const Expanded(child: _Globe()),
                       const SizedBox(height: 20),
-                      const Text(
-                        'Everyone has something to teach, and something to learn.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
-                      ),
+                      const _ArcCaption(),
                       const SizedBox(height: 16),
                       const Text.rich(
                         TextSpan(
@@ -97,6 +89,79 @@ class _Wordmark extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _ArcCaption extends StatelessWidget {
+  const _ArcCaption();
+
+  static const text =
+      'Everyone has something to teach, and something to learn.';
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: text,
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: CustomPaint(
+            key: const Key('arc_caption'),
+            painter: ArcCaptionPainter(
+              text: text,
+              textScaler: MediaQuery.textScalerOf(context),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ArcCaptionPainter extends CustomPainter {
+  const ArcCaptionPainter({required this.text, required this.textScaler});
+
+  final String text;
+  final TextScaler textScaler;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const style = TextStyle(color: AppColors.muted, fontSize: 14, height: 1);
+    final glyphs = [
+      for (final character in text.split(''))
+        TextPainter(
+          text: TextSpan(text: character, style: style),
+          textDirection: TextDirection.ltr,
+          textScaler: textScaler,
+        )..layout(),
+    ];
+    final textWidth = glyphs.fold<double>(
+      0,
+      (width, glyph) => width + glyph.width,
+    );
+    final radius = math.max(textWidth * 2.4, size.width);
+    final startAngle = -math.pi / 2 - textWidth / (2 * radius);
+    final center = Offset(size.width / 2, radius + 8);
+    var distance = 0.0;
+
+    for (final glyph in glyphs) {
+      final angle = startAngle + (distance + glyph.width / 2) / radius;
+      final position =
+          center + Offset(math.cos(angle), math.sin(angle)) * radius;
+      canvas
+        ..save()
+        ..translate(position.dx, position.dy)
+        ..rotate(angle + math.pi / 2);
+      glyph.paint(canvas, Offset(-glyph.width / 2, -glyph.height / 2));
+      canvas.restore();
+      distance += glyph.width;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant ArcCaptionPainter oldDelegate) {
+    return oldDelegate.text != text || oldDelegate.textScaler != textScaler;
   }
 }
 

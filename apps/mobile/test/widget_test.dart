@@ -19,5 +19,36 @@ void main() {
     expect(find.text('Mates'), findsOneWidget);
     expect(find.textContaining('Learn from people'), findsOneWidget);
     expect(find.byKey(const Key('get_started')), findsOneWidget);
+    expect(find.byKey(const Key('arc_caption')), findsOneWidget);
+    expect(
+      find.text('Everyone has something to teach, and something to learn.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('get started invokes its callback', (tester) async {
+    var called = false;
+    await tester.pumpWidget(
+      MaterialApp(home: WelcomeScreen(onGetStarted: () => called = true)),
+    );
+
+    await tester.tap(find.byKey(const Key('get_started')));
+
+    expect(called, isTrue);
+  });
+
+  testWidgets('welcome does not overflow at text scale 1.3', (tester) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(
+      MaterialApp(home: WelcomeScreen(onGetStarted: () {})),
+    );
+
+    expect(tester.takeException(), isNull);
   });
 }
