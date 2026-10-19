@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: knowmates
+      POSTGRES_PASSWORD: knowmates
+      POSTGRES_DB: knowmates
+    ports: ["5432:5432"]
+    volumes: ["pg:/var/lib/postgresql/data"]
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports: ["6379:6379"]
+  api:
+    build: ../services/api
+    environment:
+      ADDR: ":8080"
+      DATABASE_URL: postgres://knowmates:knowmates@postgres:5432/knowmates?sslmode=disable
+      REDIS_URL: redis://valkey:6379/0
+      ASSET_DIR: /data/avatars
+    ports: ["8080:8080"]
+    depends_on: [postgres, valkey]
+    volumes: ["avatars:/data/avatars"]
+volumes:
+  pg: {}
+  avatars: {}
