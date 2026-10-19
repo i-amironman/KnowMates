@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -88,7 +89,25 @@ func (s *Server) postSession(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 		return
 	}
+	s.notifySessionScheduled(r.Context(), uid, sess)
 	writeJSON(w, http.StatusCreated, sess)
+}
+
+func (s *Server) notifySessionScheduled(ctx context.Context, actor uuid.UUID, sess store.Session) {
+	if s.push == nil || s.devices == nil {
+		return
+	}
+	other := sess.TeacherID
+	if actor == sess.TeacherID {
+		other = sess.LearnerID
+	}
+	token, err := s.devices.LatestDeviceToken(ctx, other)
+	if err != nil || token == "" {
+		return
+	}
+	if err := s.push.Send(ctx, token, "Session scheduled", "Open KnowMates to view your upcoming session."); err != nil {
+		log.Printf("push: %v", err)
+	}
 }
 
 func (s *Server) completeSession(w http.ResponseWriter, r *http.Request) {

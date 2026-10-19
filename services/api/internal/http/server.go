@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"os"
 
@@ -28,6 +29,12 @@ type Deps struct {
 	UserEmail     UserEmail
 	Mail          mail.Sender
 	PublicHost    string
+	Devices       DeviceStore
+	Push          pushPusher
+}
+
+type pushPusher interface {
+	Send(ctx context.Context, token, title, body string) error
 }
 
 type Server struct {
@@ -52,6 +59,8 @@ type Server struct {
 	userEmail     UserEmail
 	mail          mail.Sender
 	publicHost    string
+	devices       DeviceStore
+	push          pushPusher
 }
 
 func NewServer(d Deps) *Server {
@@ -77,6 +86,8 @@ func NewServer(d Deps) *Server {
 		userEmail:     d.UserEmail,
 		mail:          d.Mail,
 		publicHost:    d.PublicHost,
+		devices:       d.Devices,
+		push:          d.Push,
 	}
 	if s.publicHost == "" {
 		s.publicHost = os.Getenv("PUBLIC_HOST")
@@ -110,6 +121,7 @@ func NewServer(d Deps) *Server {
 	s.mux.HandleFunc("GET /v1/sessions/{id}/call", s.WithUser(s.getCallWebSocket))
 	s.mux.HandleFunc("GET /v1/wallet", s.WithUser(s.getWallet))
 	s.mux.HandleFunc("POST /v1/me/avatar", s.WithUser(s.postAvatar))
+	s.mux.HandleFunc("POST /v1/me/device", s.WithUser(s.postMeDevice))
 	s.mux.HandleFunc("DELETE /v1/me", s.WithUser(s.deleteMe))
 	s.mux.HandleFunc("POST /v1/blocks", s.WithUser(s.postBlock))
 	s.mux.HandleFunc("DELETE /v1/blocks/{userId}", s.WithUser(s.deleteBlock))

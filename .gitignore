@@ -1,3 +1,5 @@
 .env
 deploy/certs/
 *-service-account.json
+google-services.json
+**/google-services.json
