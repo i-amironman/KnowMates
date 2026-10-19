@@ -1,35 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'auth/auth_controller.dart';
 import 'screens/setup_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/sign_up_screen.dart';
+import 'screens/shell_screen.dart';
 import 'screens/welcome_screen.dart';
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.auth});
-
-  final AuthController auth;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await auth.signOut();
-            },
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
-      body: const Center(child: Text('Your profile is ready.')),
-    );
-  }
-}
 
 GoRouter createRouter(AuthController auth) {
   return GoRouter(
@@ -95,7 +71,7 @@ GoRouter createRouter(AuthController auth) {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => HomeScreen(auth: auth),
+        builder: (context, state) => ShellScreen(auth: auth),
       ),
     ],
   );

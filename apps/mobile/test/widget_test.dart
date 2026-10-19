@@ -8,10 +8,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:knowmates/models/person.dart';
+import 'package:knowmates/screens/discover_screen.dart';
 import 'package:knowmates/screens/sign_up_screen.dart';
 import 'package:knowmates/screens/welcome_screen.dart';
 
 void main() {
+  testWidgets('discover card hides an unproven rating', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DiscoverScreen(
+          people: const [
+            Person(
+              id: '1',
+              displayName: 'Emma Thompson',
+              bio:
+                  'Customer service expert transitioning into tech.',
+              languages: ['en', 'es'],
+              teach: [
+                TeachSkill(name: 'Web Development', proficiency: 4),
+              ],
+              sessionsTaught: 28,
+              ratingAvg: 4.9,
+              ratingCount: 2,
+              score: 80,
+            ),
+          ],
+          onRequest: (_) {},
+          onSkip: (_) {},
+          onOpen: (_) {},
+        ),
+      ),
+    );
+    expect(find.text('Emma Thompson'), findsOneWidget);
+    expect(find.text('4.9'), findsNothing);
+    expect(find.textContaining('Online'), findsNothing);
+  });
+
   testWidgets('welcome shows wordmark and get started', (tester) async {
     await tester.pumpWidget(
       MaterialApp(home: WelcomeScreen(onGetStarted: () {})),
