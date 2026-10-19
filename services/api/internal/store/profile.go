@@ -54,6 +54,10 @@ type Me struct {
 	Balance            int         `json:"balance"`
 	ProfileReady       bool        `json:"profileReady"`
 	SessionsCompleted  int         `json:"sessionsCompleted"`
+	RatingAvg          float64     `json:"ratingAvg"`
+	RatingCount        int         `json:"ratingCount"`
+	TeachCount         int         `json:"teachCount"`
+	LearnCount         int         `json:"learnCount"`
 }
 
 func (s *Store) UpdateProfile(ctx context.Context, userID uuid.UUID, p ProfilePatch) error {
@@ -251,5 +255,15 @@ func (s *Store) Me(ctx context.Context, userID uuid.UUID) (Me, error) {
 	if err != nil {
 		return Me{}, err
 	}
+	err = s.pool.QueryRow(ctx, `
+		SELECT COALESCE(AVG(rev.rating), 0), COUNT(*)::int
+		FROM reviews rev
+		JOIN sessions sess ON sess.id = rev.session_id
+		WHERE sess.teacher_id = $1 AND rev.reviewer_id = sess.learner_id`, userID).Scan(&m.RatingAvg, &m.RatingCount)
+	if err != nil {
+		return Me{}, err
+	}
+	m.TeachCount = len(m.Teach)
+	m.LearnCount = len(m.Learn)
 	return m, nil
 }

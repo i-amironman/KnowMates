@@ -16,6 +16,31 @@ import (
 type RequestStore interface {
 	CreateRequest(ctx context.Context, learner, teacher, skill uuid.UUID, goal string) (store.Request, error)
 	SetRequestStatus(ctx context.Context, id, actor uuid.UUID, to string) error
+	ListRequests(ctx context.Context, userID uuid.UUID) (incoming, sent []store.RequestView, err error)
+}
+
+func (s *Server) getRequests(w http.ResponseWriter, r *http.Request) {
+	uid, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if s.requests == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
+		return
+	}
+	incoming, sent, err := s.requests.ListRequests(r.Context(), uid)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+		return
+	}
+	if incoming == nil {
+		incoming = []store.RequestView{}
+	}
+	if sent == nil {
+		sent = []store.RequestView{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"incoming": incoming, "sent": sent})
 }
 
 func (s *Server) postRequest(w http.ResponseWriter, r *http.Request) {

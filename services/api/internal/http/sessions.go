@@ -18,6 +18,28 @@ type BookingStore interface {
 	Complete(ctx context.Context, sessionID, actor uuid.UUID) (string, error)
 	CancelSession(ctx context.Context, sessionID, actor uuid.UUID) error
 	Wallet(ctx context.Context, userID uuid.UUID) (store.Wallet, error)
+	ListSessions(ctx context.Context, userID uuid.UUID) ([]store.SessionView, error)
+}
+
+func (s *Server) getSessions(w http.ResponseWriter, r *http.Request) {
+	uid, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if s.bookings == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
+		return
+	}
+	list, err := s.bookings.ListSessions(r.Context(), uid)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+		return
+	}
+	if list == nil {
+		list = []store.SessionView{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": list})
 }
 
 func (s *Server) postSession(w http.ResponseWriter, r *http.Request) {

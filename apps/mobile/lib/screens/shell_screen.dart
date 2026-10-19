@@ -25,7 +25,10 @@ class _ShellScreenState extends State<ShellScreen> {
   void _openPerson(Person person) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PersonScreen(person: person),
+        builder: (_) => PersonScreen(
+          person: person,
+          client: widget.auth.client,
+        ),
       ),
     );
   }
@@ -34,9 +37,9 @@ class _ShellScreenState extends State<ShellScreen> {
   Widget build(BuildContext context) {
     final pages = [
       DiscoverTab(auth: widget.auth, onOpenPerson: _openPerson),
-      const RequestsScreen(),
+      RequestsScreen(auth: widget.auth),
       HomeScreen(auth: widget.auth),
-      const SessionsScreen(),
+      SessionsScreen(auth: widget.auth),
       ProfileScreen(auth: widget.auth),
     ];
 
