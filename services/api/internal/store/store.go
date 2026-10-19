@@ -8,13 +8,20 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"knowmates/services/api/migrations"
 )
 
-var ErrEmailTaken = errors.New("store: email already registered")
+var (
+	ErrEmailTaken      = errors.New("store: email already registered")
+	ErrNoSuchUser      = errors.New("store: user not found")
+	ErrNoSuchRefresh   = errors.New("store: refresh not found")
+	ErrRefreshRevoked  = errors.New("store: refresh revoked reuse")
+	ErrRefreshExpired  = errors.New("store: refresh expired")
+)
 
 type Store struct{ pool *pgxpool.Pool }
 
@@ -112,5 +119,83 @@ func (s *Store) CreateUser(ctx context.Context, email, hash string, birth time.T
 		return User{}, ErrEmailTaken
 	}
 	return u, err
+}
+
+func (s *Store) UserCredsByEmail(ctx context.Context, email string) (id, passwordHash string, err error) {
+	err = s.pool.QueryRow(ctx,
+		`SELECT id::text, password_hash FROM users WHERE email = $1`, email).
+		Scan(&id, &passwordHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", ErrNoSuchUser
+	}
+	return id, passwordHash, err
+}
+
+const refreshTTL = 30 * 24 * time.Hour
+
+func (s *Store) InsertRefresh(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at)
+		 VALUES (gen_random_uuid(), $1, $2, $3)`,
+		userID, tokenHash, expiresAt)
+	return err
+}
+
+// RotateRefresh revokes the presented token and inserts a new one in one transaction.
+// Reuse of an already-revoked token revokes every active refresh for that user.
+func (s *Store) RotateRefresh(ctx context.Context, tokenHash, newHash string, newExpires time.Time) (userID string, err error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var id, uid string
+	var expiresAt time.Time
+	var revokedAt *time.Time
+	err = tx.QueryRow(ctx,
+		`SELECT id::text, user_id::text, expires_at, revoked_at
+		 FROM refresh_tokens WHERE token_hash = $1 FOR UPDATE`,
+		tokenHash).Scan(&id, &uid, &expiresAt, &revokedAt)
+	if err != nil {
+		return "", ErrNoSuchRefresh
+	}
+	if revokedAt != nil {
+		_, _ = tx.Exec(ctx,
+			`UPDATE refresh_tokens SET revoked_at = now()
+			 WHERE user_id = $1 AND revoked_at IS NULL`, uid)
+		return "", ErrRefreshRevoked
+	}
+	if time.Now().After(expiresAt) {
+		return "", ErrRefreshExpired
+	}
+	if _, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = now() WHERE id = $1`, id); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at)
+		 VALUES (gen_random_uuid(), $1, $2, $3)`,
+		uid, newHash, newExpires); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	return uid, nil
+}
+
+// RevokeRefresh sets revoked_at on the matching refresh row (sign-out).
+func (s *Store) RevokeRefresh(ctx context.Context, userID, tokenHash string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE refresh_tokens SET revoked_at = now()
+		 WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
+		tokenHash, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoSuchRefresh
+	}
+	return nil
 }
 

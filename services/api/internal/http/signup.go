@@ -84,6 +84,15 @@ func (s *Server) signUp(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 	default:
-		writeJSON(w, http.StatusCreated, u)
+		if len(s.authSecret) < 32 || s.sessions == nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
+			return
+		}
+		pair, err := s.issuePairCtx(r.Context(), u.ID, time.Now())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+			return
+		}
+		writeJSON(w, http.StatusCreated, pair)
 	}
 }
