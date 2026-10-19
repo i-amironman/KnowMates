@@ -14,3 +14,12 @@ func TestHealthz(t *testing.T) {
 		t.Fatalf("got %d %q", rr.Code, rr.Body.String())
 	}
 }
+
+func TestHealthzPostMethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/healthz", nil)
+	rr := httptest.NewRecorder()
+	NewServer(nil).Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("got %d", rr.Code)
+	}
+}
