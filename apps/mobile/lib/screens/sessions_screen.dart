@@ -3,8 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../api/client.dart';
 import '../auth/auth_controller.dart';
+import '../call/join_window.dart';
 import '../theme/app_colors.dart';
 
 class SessionsScreen extends StatefulWidget {
@@ -303,6 +306,11 @@ class _SessionsScreenState extends State<SessionsScreen> {
                               ),
                             Row(
                               children: [
+                                if (canJoin(DateTime.now().toUtc(), s.status, s.startsAt))
+                                  TextButton(
+                                    onPressed: () => context.push('/call/${s.id}'),
+                                    child: const Text('Join'),
+                                  ),
                                 if (s.status == 'scheduled') ...[
                                   TextButton(onPressed: () => _complete(s), child: const Text('Complete')),
                                   TextButton(onPressed: () => _cancel(s), child: const Text('Cancel')),

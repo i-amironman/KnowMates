@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'auth/auth_controller.dart';
+import 'screens/call_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/sign_up_screen.dart';
@@ -29,7 +30,7 @@ GoRouter createRouter(AuthController auth) {
         }
         return '/setup';
       }
-      if (loc == '/home') {
+      if (loc == '/home' || loc.startsWith('/call/')) {
         return null;
       }
       return '/home';
@@ -72,6 +73,13 @@ GoRouter createRouter(AuthController auth) {
       GoRoute(
         path: '/home',
         builder: (context, state) => ShellScreen(auth: auth),
+      ),
+      GoRoute(
+        path: '/call/:sessionId',
+        builder: (context, state) => CallScreen(
+          auth: auth,
+          sessionId: state.pathParameters['sessionId']!,
+        ),
       ),
     ],
   );
