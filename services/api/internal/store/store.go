@@ -157,13 +157,21 @@ func (s *Store) RotateRefresh(ctx context.Context, tokenHash, newHash string, ne
 		`SELECT id::text, user_id::text, expires_at, revoked_at
 		 FROM refresh_tokens WHERE token_hash = $1 FOR UPDATE`,
 		tokenHash).Scan(&id, &uid, &expiresAt, &revokedAt)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNoSuchRefresh
 	}
+	if err != nil {
+		return "", err
+	}
 	if revokedAt != nil {
-		_, _ = tx.Exec(ctx,
+		if _, err := tx.Exec(ctx,
 			`UPDATE refresh_tokens SET revoked_at = now()
-			 WHERE user_id = $1 AND revoked_at IS NULL`, uid)
+			 WHERE user_id = $1 AND revoked_at IS NULL`, uid); err != nil {
+			return "", err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return "", err
+		}
 		return "", ErrRefreshRevoked
 	}
 	if time.Now().After(expiresAt) {
