@@ -227,8 +227,10 @@ func (s *Server) WithUser(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// RedisClient is the subset of go-redis used for login rate limits.
+// RedisClient is the subset of go-redis used for rate limits and discover cache.
 type RedisClient interface {
 	Incr(ctx context.Context, key string) *redis.IntCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 }

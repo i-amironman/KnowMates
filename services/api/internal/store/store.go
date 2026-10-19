@@ -23,7 +23,10 @@ var (
 	ErrRefreshExpired  = errors.New("store: refresh expired")
 )
 
-type Store struct{ pool *pgxpool.Pool }
+type Store struct {
+	pool     *pgxpool.Pool
+	readPool *pgxpool.Pool
+}
 
 type User struct {
 	ID        string    `json:"id"`
@@ -45,7 +48,36 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	return &Store{pool: pool}, nil
 }
 
-func (s *Store) Close() { s.pool.Close() }
+func (s *Store) Close() {
+	if s.readPool != nil && s.readPool != s.pool {
+		s.readPool.Close()
+	}
+	s.pool.Close()
+}
+
+func (s *Store) readQ() *pgxpool.Pool {
+	if s.readPool != nil {
+		return s.readPool
+	}
+	return s.pool
+}
+
+// AttachReadPool opens an optional read replica for discovery queries.
+func (s *Store) AttachReadPool(ctx context.Context, dsn string) error {
+	if dsn == "" {
+		return nil
+	}
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return err
+	}
+	s.readPool = pool
+	return nil
+}
 
 // Migrate applies migrations/*.sql in name order, recording each filename once.
 // ponytail: a Postgres advisory lock serializes concurrent API instances; no down-migrations.

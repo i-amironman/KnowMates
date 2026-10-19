@@ -33,6 +33,12 @@ func main() {
 		deps.Sessions = st
 		deps.Profiles = st
 		deps.Skills = st
+		deps.Discover = st
+		if readDSN := os.Getenv("DATABASE_READ_URL"); readDSN != "" {
+			if err := st.AttachReadPool(ctx, readDSN); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 	if dir := os.Getenv("ASSET_DIR"); dir != "" {
 		deps.Avatars = &avatar.DiskStore{Dir: dir, PublicBase: os.Getenv("PUBLIC_BASE")}
