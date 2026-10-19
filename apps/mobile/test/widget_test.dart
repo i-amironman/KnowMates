@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:knowmates/screens/sign_up_screen.dart';
 import 'package:knowmates/screens/welcome_screen.dart';
 
 void main() {
@@ -35,6 +36,14 @@ void main() {
     await tester.tap(find.byKey(const Key('get_started')));
 
     expect(called, isTrue);
+  });
+
+  testWidgets('sign up blocks a birth year that is under 18', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: SignUpScreen(onSubmit: (_) {})));
+    await tester.enterText(find.byKey(const Key('birth')), '2010-01-01');
+    await tester.tap(find.byKey(const Key('submit_sign_up')));
+    await tester.pump();
+    expect(find.text('You need to be 18 or older.'), findsOneWidget);
   });
 
   testWidgets('welcome does not overflow at text scale 1.3', (tester) async {
