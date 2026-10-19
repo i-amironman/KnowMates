@@ -1,0 +1,61 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    environment:
+      API_HOST: ${API_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/etc/caddy/certs:ro
+      - caddy:/data
+      - avatars:/srv/avatars:ro
+      - ../docs/privacy-policy.html:/srv/privacy.html:ro
+    depends_on: [api]
+    restart: unless-stopped
+  api:
+    build: ../services/api
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgres://knowmates:${POSTGRES_PASSWORD}@postgres:5432/knowmates?sslmode=disable
+      REDIS_URL: redis://valkey:6379/0
+      ASSET_DIR: /data/avatars
+      TURN_SECRET: ${TURN_SECRET}
+      TURN_URLS: ${TURN_URLS}
+    volumes: ["avatars:/data/avatars", "./secrets:/secrets:ro"]
+    depends_on: [postgres, valkey]
+    restart: unless-stopped
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: knowmates
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: knowmates
+    volumes: ["pg:/var/lib/postgresql/data"]
+    restart: unless-stopped
+  valkey:
+    image: valkey/valkey:8-alpine
+    volumes: ["valkey:/data"]
+    restart: unless-stopped
+  coturn:
+    image: coturn/coturn:4.18.0
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - --listening-port=3478
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET}
+      - --realm=knowmates
+      - --total-quota=40
+      - --max-bps=800000
+      - --stale-nonce=600
+      - --no-multicast-peers
+      - --no-cli
+      - --min-port=49160
+      - --max-port=49200
+      - --external-ip=${TURN_PUBLIC_IP}/${TURN_PRIVATE_IP}
+volumes:
+  pg: {}
+  valkey: {}
+  avatars: {}
+  caddy: {}

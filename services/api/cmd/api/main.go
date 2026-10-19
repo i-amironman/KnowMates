@@ -10,6 +10,7 @@ import (
 
 	"knowmates/services/api/internal/avatar"
 	apihttp "knowmates/services/api/internal/http"
+	"knowmates/services/api/internal/mail"
 	"knowmates/services/api/internal/store"
 )
 
@@ -38,6 +39,9 @@ func main() {
 		deps.Bookings = st
 		deps.Calls = st
 		deps.Safety = st
+		deps.EmailVerified = st
+		deps.VerifyTokens = st
+		deps.UserEmail = st
 		if readDSN := os.Getenv("DATABASE_READ_URL"); readDSN != "" {
 			if err := st.AttachReadPool(ctx, readDSN); err != nil {
 				log.Fatal(err)
@@ -50,6 +54,8 @@ func main() {
 	if sec := os.Getenv("AUTH_SECRET"); sec != "" {
 		deps.Secret = []byte(sec)
 	}
+	deps.Mail = mail.SenderFromEnv()
+	deps.PublicHost = os.Getenv("PUBLIC_HOST")
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
 		opts, err := redis.ParseURL(redisURL)
 		if err != nil {

@@ -10,6 +10,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
+
 	"knowmates/services/api/internal/auth"
 	"knowmates/services/api/internal/store"
 )
@@ -92,6 +94,9 @@ func (s *Server) signUp(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 			return
+		}
+		if uid, parseErr := uuid.Parse(u.ID); parseErr == nil {
+			s.sendVerificationEmail(r.Context(), uid, email)
 		}
 		writeJSON(w, http.StatusCreated, pair)
 	}

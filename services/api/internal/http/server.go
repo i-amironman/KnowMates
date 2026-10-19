@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"knowmates/services/api/internal/avatar"
+	"knowmates/services/api/internal/mail"
 )
 
 // Deps wires store-backed auth into the HTTP server.
@@ -18,10 +19,15 @@ type Deps struct {
 	Requests RequestStore
 	Bookings BookingStore
 	Safety   SafetyStore
-	Calls    CallStore
-	Avatars  avatar.AvatarStore
-	Secret   []byte
-	Redis    RedisClient
+	Calls         CallStore
+	Avatars       avatar.AvatarStore
+	Secret        []byte
+	Redis         RedisClient
+	EmailVerified EmailVerifier
+	VerifyTokens  VerifyTokens
+	UserEmail     UserEmail
+	Mail          mail.Sender
+	PublicHost    string
 }
 
 type Server struct {
@@ -41,6 +47,11 @@ type Server struct {
 	authSecret    []byte
 	redis         RedisClient
 	discoverRedis DiscoverRedis
+	emailVerified EmailVerifier
+	verifyTokens  VerifyTokens
+	userEmail     UserEmail
+	mail          mail.Sender
+	publicHost    string
 }
 
 func NewServer(d Deps) *Server {
@@ -61,8 +72,21 @@ func NewServer(d Deps) *Server {
 		authSecret:    d.Secret,
 		redis:         d.Redis,
 		discoverRedis: d.Redis,
+		emailVerified: d.EmailVerified,
+		verifyTokens:  d.VerifyTokens,
+		userEmail:     d.UserEmail,
+		mail:          d.Mail,
+		publicHost:    d.PublicHost,
+	}
+	if s.publicHost == "" {
+		s.publicHost = os.Getenv("PUBLIC_HOST")
+	}
+	if s.mail == nil {
+		s.mail = mail.SenderFromEnv()
 	}
 	s.mux.HandleFunc("POST /v1/auth/sign-up", s.signUp)
+	s.mux.HandleFunc("GET /v1/auth/verify", s.getVerify)
+	s.mux.HandleFunc("POST /v1/auth/verify/resend", s.WithUser(s.postVerifyResend))
 	s.mux.HandleFunc("POST /v1/auth/sign-in", s.signIn)
 	s.mux.HandleFunc("POST /v1/auth/refresh", s.refresh)
 	s.mux.HandleFunc("POST /v1/auth/sign-out", s.WithUser(s.signOut))

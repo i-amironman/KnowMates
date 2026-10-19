@@ -33,6 +33,17 @@ func (s *Server) getDiscover(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
+	if s.emailVerified != nil {
+		verified, err := s.emailVerified.EmailVerified(r.Context(), uid)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+			return
+		}
+		if !verified {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "email_unverified"})
+			return
+		}
+	}
 	if s.discover == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
 		return

@@ -1,0 +1,15 @@
+{$API_HOST} {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	handle /avatars/* {
+		root * /srv
+		file_server
+	}
+	handle /privacy {
+		root * /srv
+		rewrite * /privacy.html
+		file_server
+	}
+	handle {
+		reverse_proxy api:8080
+	}
+}
