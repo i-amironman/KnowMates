@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../auth/auth_controller.dart';
+import '../setup/weekday.dart';
 import 'sign_up_screen.dart' show defaultSignupTimezone, kTimezones;
 
 class SetupScreen extends StatefulWidget {
@@ -22,14 +23,13 @@ class _SetupScreenState extends State<SetupScreen> {
   final _teach = <String>{};
   final _learn = <String>{};
   final _slots = <_AvailSlot>[];
-  int _weekday = 1;
+  int _weekday = kDefaultApiWeekday;
   TimeOfDay _start = const TimeOfDay(hour: 18, minute: 0);
   TimeOfDay _end = const TimeOfDay(hour: 20, minute: 0);
   String? _error;
   bool _busy = false;
 
   static const _languageOptions = ['en', 'es', 'hi'];
-  static const _weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   @override
   void initState() {
@@ -246,7 +246,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         for (var i = 0; i < 7; i++)
                           DropdownMenuItem(
                             value: i,
-                            child: Text(_weekdayLabels[i]),
+                            child: Text(apiWeekdayLabel(i)),
                           ),
                       ],
                       onChanged: (v) {
@@ -286,7 +286,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     ),
                     for (final slot in _slots)
                       Text(
-                        '${_weekdayLabels[slot.weekday]} '
+                        '${apiWeekdayLabel(slot.weekday)} '
                         '${slot.startMin ~/ 60}:${(slot.startMin % 60).toString().padLeft(2, '0')}–'
                         '${slot.endMin ~/ 60}:${(slot.endMin % 60).toString().padLeft(2, '0')}',
                       ),

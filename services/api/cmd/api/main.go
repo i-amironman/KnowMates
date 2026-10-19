@@ -32,6 +32,7 @@ func main() {
 		deps.SignIn = st
 		deps.Sessions = st
 		deps.Profiles = st
+		deps.Skills = st
 	}
 	if dir := os.Getenv("ASSET_DIR"); dir != "" {
 		deps.Avatars = &avatar.DiskStore{Dir: dir, PublicBase: os.Getenv("PUBLIC_BASE")}

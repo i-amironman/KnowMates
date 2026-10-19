@@ -13,6 +13,7 @@ type Deps struct {
 	SignIn   SignInUsers
 	Sessions Sessions
 	Profiles ProfileStore
+	Skills   SkillsCatalog
 	Avatars  avatar.AvatarStore
 	Secret   []byte
 	Redis    RedisClient
@@ -25,6 +26,7 @@ type Server struct {
 	creds      SignInUsers
 	sessions   Sessions
 	profiles   ProfileStore
+	skills     SkillsCatalog
 	avatars    avatar.AvatarStore
 	authSecret []byte
 	redis      RedisClient
@@ -38,6 +40,7 @@ func NewServer(d Deps) *Server {
 		creds:      d.SignIn,
 		sessions:   d.Sessions,
 		profiles:   d.Profiles,
+		skills:     d.Skills,
 		avatars:    d.Avatars,
 		authSecret: d.Secret,
 		redis:      d.Redis,
@@ -50,6 +53,7 @@ func NewServer(d Deps) *Server {
 	s.mux.HandleFunc("PATCH /v1/me", s.WithUser(s.patchMe))
 	s.mux.HandleFunc("PUT /v1/me/skills", s.WithUser(s.putSkills))
 	s.mux.HandleFunc("PUT /v1/me/availability", s.WithUser(s.putAvailability))
+	s.mux.HandleFunc("GET /v1/skills", s.WithUser(s.getSkills))
 	s.mux.HandleFunc("POST /v1/me/avatar", s.WithUser(s.postAvatar))
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
