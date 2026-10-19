@@ -143,6 +143,60 @@ class _SessionsScreenState extends State<SessionsScreen> {
     await _load();
   }
 
+  Future<void> _review(_SessionRow row) async {
+    var rating = 5;
+    final bodyCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: AppColors.card,
+          title: const Text('Review session', style: TextStyle(color: AppColors.text)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Rate ${row.counterpartName}', style: const TextStyle(color: AppColors.muted)),
+              Slider(
+                value: rating.toDouble(),
+                min: 1,
+                max: 5,
+                divisions: 4,
+                label: '$rating',
+                activeColor: AppColors.magenta,
+                onChanged: (v) => setLocal(() => rating = v.round()),
+              ),
+              TextField(
+                controller: bodyCtrl,
+                style: const TextStyle(color: AppColors.text),
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Comment (optional)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.magenta),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) {
+      bodyCtrl.dispose();
+      return;
+    }
+    await _client.post('/v1/sessions/${row.id}/reviews', body: {
+      'rating': rating,
+      'body': bodyCtrl.text.trim(),
+    });
+    bodyCtrl.dispose();
+    await _load();
+  }
+
   Future<void> _openBackup(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -253,6 +307,10 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                   TextButton(onPressed: () => _complete(s), child: const Text('Complete')),
                                   TextButton(onPressed: () => _cancel(s), child: const Text('Cancel')),
                                 ],
+                                if (s.status == 'completed' && !s.reviewedByMe)
+                                  TextButton(onPressed: () => _review(s), child: const Text('Leave review')),
+                                if (s.status == 'completed' && s.reviewedByMe)
+                                  const Text('Reviewed', style: TextStyle(color: AppColors.muted, fontSize: 12)),
                               ],
                             ),
                           ],
@@ -279,6 +337,7 @@ class _SessionRow {
     required this.endsAt,
     required this.meetingUrl,
     required this.status,
+    required this.reviewedByMe,
   });
 
   final String id;
@@ -289,6 +348,7 @@ class _SessionRow {
   final DateTime endsAt;
   final String meetingUrl;
   final String status;
+  final bool reviewedByMe;
 
   factory _SessionRow.fromJson(Map<String, dynamic> json) {
     return _SessionRow(
@@ -300,6 +360,7 @@ class _SessionRow {
       endsAt: DateTime.parse(json['endsAt'] as String),
       meetingUrl: json['meetingUrl'] as String? ?? '',
       status: json['status'] as String? ?? '',
+      reviewedByMe: json['reviewedByMe'] as bool? ?? false,
     );
   }
 }

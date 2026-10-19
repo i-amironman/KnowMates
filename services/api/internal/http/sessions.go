@@ -19,6 +19,7 @@ type BookingStore interface {
 	CancelSession(ctx context.Context, sessionID, actor uuid.UUID) error
 	Wallet(ctx context.Context, userID uuid.UUID) (store.Wallet, error)
 	ListSessions(ctx context.Context, userID uuid.UUID) ([]store.SessionView, error)
+	CreateReview(ctx context.Context, sessionID, reviewerID uuid.UUID, rating int, body string) error
 }
 
 func (s *Server) getSessions(w http.ResponseWriter, r *http.Request) {
@@ -141,6 +142,49 @@ func (s *Server) cancelSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = s.bookings.CancelSession(r.Context(), id, uid)
+	if errors.Is(err, store.ErrNoSuchSession) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not_found"})
+		return
+	}
+	if errors.Is(err, store.ErrForbidden) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+		return
+	}
+	if errors.Is(err, store.ErrConflict) {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "conflict"})
+		return
+	}
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) postSessionReview(w http.ResponseWriter, r *http.Request) {
+	uid, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if s.bookings == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
+		return
+	}
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		badRequest(w, "invalid_json")
+		return
+	}
+	var in struct {
+		Rating int    `json:"rating"`
+		Body   string `json:"body"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		badRequest(w, "invalid_json")
+		return
+	}
+	err = s.bookings.CreateReview(r.Context(), id, uid, in.Rating, in.Body)
 	if errors.Is(err, store.ErrNoSuchSession) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not_found"})
 		return

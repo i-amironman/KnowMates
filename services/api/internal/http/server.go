@@ -78,6 +78,7 @@ func NewServer(d Deps) *Server {
 	s.mux.HandleFunc("POST /v1/sessions", s.WithUser(s.postSession))
 	s.mux.HandleFunc("POST /v1/sessions/{id}/complete", s.WithUser(s.completeSession))
 	s.mux.HandleFunc("POST /v1/sessions/{id}/cancel", s.WithUser(s.cancelSession))
+	s.mux.HandleFunc("POST /v1/sessions/{id}/reviews", s.WithUser(s.postSessionReview))
 	s.mux.HandleFunc("GET /v1/wallet", s.WithUser(s.getWallet))
 	s.mux.HandleFunc("POST /v1/me/avatar", s.WithUser(s.postAvatar))
 	s.mux.HandleFunc("DELETE /v1/me", s.WithUser(s.deleteMe))

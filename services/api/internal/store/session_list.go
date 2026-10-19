@@ -10,6 +10,7 @@ type SessionView struct {
 	Session
 	SkillName       string `json:"skillName"`
 	CounterpartName string `json:"counterpartName"`
+	ReviewedByMe    bool   `json:"reviewedByMe"`
 }
 
 func (s *Store) ListSessions(ctx context.Context, userID uuid.UUID) ([]SessionView, error) {
@@ -17,7 +18,8 @@ func (s *Store) ListSessions(ctx context.Context, userID uuid.UUID) ([]SessionVi
 		SELECT s.id, s.request_id, s.learner_id, s.teacher_id, s.skill_id,
 			s.starts_at, s.ends_at, s.meeting_url, s.status, s.learner_done, s.teacher_done,
 			sk.name,
-			CASE WHEN s.learner_id = $1 THEN ut.display_name ELSE ul.display_name END
+			CASE WHEN s.learner_id = $1 THEN ut.display_name ELSE ul.display_name END,
+			EXISTS (SELECT 1 FROM reviews r WHERE r.session_id = s.id AND r.reviewer_id = $1)
 		FROM sessions s
 		JOIN skills sk ON sk.id = s.skill_id
 		JOIN users ul ON ul.id = s.learner_id
@@ -34,7 +36,7 @@ func (s *Store) ListSessions(ctx context.Context, userID uuid.UUID) ([]SessionVi
 		if err := rows.Scan(
 			&v.ID, &v.RequestID, &v.LearnerID, &v.TeacherID, &v.SkillID,
 			&v.StartsAt, &v.EndsAt, &v.MeetingURL, &v.Status, &v.LearnerDone, &v.TeacherDone,
-			&v.SkillName, &v.CounterpartName,
+			&v.SkillName, &v.CounterpartName, &v.ReviewedByMe,
 		); err != nil {
 			return nil, err
 		}
