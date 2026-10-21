@@ -17,6 +17,8 @@ services:
       DATABASE_URL: postgres://knowmates:knowmates@postgres:5432/knowmates?sslmode=disable
       REDIS_URL: redis://valkey:6379/0
       ASSET_DIR: /data/avatars
+      # local dev only — override in prod via deploy/.env
+      AUTH_SECRET: dev-local-auth-secret-min-32-chars!!
     ports: ["8080:8080"]
     depends_on: [postgres, valkey]
     volumes: ["avatars:/data/avatars"]
