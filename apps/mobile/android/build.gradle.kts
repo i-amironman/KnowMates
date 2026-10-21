@@ -1,3 +1,5 @@
+import com.android.build.gradle.LibraryExtension
+
 allprojects {
     repositories {
         google()
@@ -17,6 +19,18 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+// ponytail: old plugins (e.g. flutter_webrtc) set compileSdk 31 in their own build.gradle after the plugin applies
+subprojects {
+    val bumpLibraryCompileSdk = {
+        extensions.findByType(LibraryExtension::class.java)?.compileSdk = 36
+    }
+    if (state.executed) {
+        bumpLibraryCompileSdk()
+    } else {
+        afterEvaluate { bumpLibraryCompileSdk() }
+    }
 }
 
 tasks.register<Delete>("clean") {

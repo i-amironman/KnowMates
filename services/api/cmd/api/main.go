@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	_ "time/tzdata" // ponytail: Alpine API image has no zoneinfo; LoadLocation needs embedded IANA data
 
 	"github.com/redis/go-redis/v9"
 
