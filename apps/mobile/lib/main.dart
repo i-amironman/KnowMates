@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'auth/auth_controller.dart';
 import 'router.dart';
@@ -20,8 +21,27 @@ class KnowMatesApp extends StatefulWidget {
   State<KnowMatesApp> createState() => _KnowMatesAppState();
 }
 
-class _KnowMatesAppState extends State<KnowMatesApp> {
-  late final router = createRouter(widget.auth);
+class _KnowMatesAppState extends State<KnowMatesApp> with WidgetsBindingObserver {
+  late final GoRouter router = createRouter(widget.auth);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.auth.bootstrapped) {
+      router.go('/welcome');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

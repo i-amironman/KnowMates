@@ -30,7 +30,7 @@ class ApiClient {
     return _send('GET', path, query: query);
   }
 
-  Future<http.Response> post(String path, {Object? body, bool auth = false}) {
+  Future<http.Response> post(String path, {Object? body, bool auth = true}) {
     return _send('POST', path, body: body, auth: auth);
   }
 
@@ -142,4 +142,11 @@ const _knownErrors = {
   'email_taken': 'That email is already registered.',
   'bad_credentials': 'Email or password is wrong.',
   'password_too_short': 'Password must be at least 10 characters.',
+  'unauthorized': 'Your session expired. Sign in again.',
+  'forbidden': 'You cannot do that right now.',
+  'conflict': 'You already have a pending request for this skill.',
+  'invalid_json': 'Request could not be read. Try again.',
+  'invalid_goal': 'Use at least 8 characters in your learning goal.',
+  'invalid_teacher': 'This profile is not available for requests.',
+  'invalid_skill': 'Pick a valid skill and try again.',
 };

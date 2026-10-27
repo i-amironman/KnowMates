@@ -8,6 +8,16 @@ import 'screens/sign_up_screen.dart';
 import 'screens/shell_screen.dart';
 import 'screens/welcome_screen.dart';
 
+bool _isPublicRoute(String loc) =>
+    loc == '/welcome' || loc == '/sign-up' || loc == '/sign-in';
+
+void _continueFromWelcome(GoRouter router, AuthController auth) {
+  if (auth.accessToken == null) {
+    return;
+  }
+  router.go(auth.profileReady ? '/home' : '/setup');
+}
+
 GoRouter createRouter(AuthController auth) {
   return GoRouter(
     refreshListenable: auth,
@@ -19,16 +29,22 @@ GoRouter createRouter(AuthController auth) {
       final loggedIn = auth.accessToken != null;
       final loc = state.matchedLocation;
       if (!loggedIn) {
-        if (loc == '/welcome' || loc == '/sign-up' || loc == '/sign-in') {
+        if (_isPublicRoute(loc)) {
           return null;
         }
         return '/welcome';
+      }
+      if (_isPublicRoute(loc)) {
+        return null;
       }
       if (!auth.profileReady) {
         if (loc == '/setup') {
           return null;
         }
         return '/setup';
+      }
+      if (loc == '/setup') {
+        return '/home';
       }
       if (loc == '/home' || loc.startsWith('/call/')) {
         return null;
@@ -38,9 +54,25 @@ GoRouter createRouter(AuthController auth) {
     routes: [
       GoRoute(
         path: '/welcome',
-        builder: (context, state) => WelcomeScreen(
-          onGetStarted: () => context.push('/sign-up'),
-        ),
+        builder: (context, state) {
+          final router = GoRouter.of(context);
+          return WelcomeScreen(
+            onGetStarted: () {
+              if (auth.accessToken != null) {
+                _continueFromWelcome(router, auth);
+              } else {
+                context.push('/sign-up');
+              }
+            },
+            onSignIn: () {
+              if (auth.accessToken != null) {
+                _continueFromWelcome(router, auth);
+              } else {
+                context.push('/sign-in');
+              }
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/sign-up',

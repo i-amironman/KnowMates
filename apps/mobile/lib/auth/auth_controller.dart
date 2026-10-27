@@ -8,12 +8,16 @@ import '../push/device_token.dart';
 
 class SignUpInput {
   const SignUpInput({
+    required this.displayName,
+    required this.gender,
     required this.email,
     required this.password,
     required this.birthDate,
     required this.timezone,
   });
 
+  final String displayName;
+  final String gender;
   final String email;
   final String password;
   final String birthDate;
@@ -100,11 +104,14 @@ class AuthController extends ChangeNotifier {
   Future<String?> signUp(SignUpInput input) async {
     final response = await _client.post(
       '/v1/auth/sign-up',
+      auth: false,
       body: {
         'email': input.email.trim(),
         'password': input.password,
         'birth_date': input.birthDate,
         'timezone': input.timezone,
+        'displayName': input.displayName.trim(),
+        'gender': input.gender,
       },
     );
     if (response.statusCode == 201) {
@@ -123,6 +130,7 @@ class AuthController extends ChangeNotifier {
   }) async {
     final response = await _client.post(
       '/v1/auth/sign-in',
+      auth: false,
       body: {'email': email.trim(), 'password': password},
     );
     if (response.statusCode == 200) {
@@ -179,20 +187,14 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<String?> completeSetup({
-    required String displayName,
     required List<String> languages,
-    required String timezone,
     required List<Map<String, dynamic>> teach,
     required List<Map<String, dynamic>> learn,
     required List<Map<String, dynamic>> slots,
   }) async {
     var response = await _client.patch(
       '/v1/me',
-      body: {
-        'displayName': displayName,
-        'languages': languages,
-        'timezone': timezone,
-      },
+      body: {'languages': languages},
     );
     if (response.statusCode != 200) {
       return apiErrorMessage(response) ?? 'Could not save profile.';

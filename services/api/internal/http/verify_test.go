@@ -34,12 +34,13 @@ func TestSignUpSendsVerificationEmail(t *testing.T) {
 	s := NewServer(Deps{
 		Users:        f,
 		Sessions:     &fakeSessions{},
+		Profiles:     &signupProfileStub{},
 		Secret:       testSecret,
 		Mail:         m,
 		VerifyTokens: fakeVerifyTokens{},
 		PublicHost:   "api.example.com",
 	})
-	rr := signUp(t, s, `{"email":"a@b.co","password":"1234567890","birth_date":"1990-01-01","timezone":"UTC"}`)
+	rr := signUp(t, s, validSignUpBody)
 	if rr.Code != 201 {
 		t.Fatalf("got %d %q", rr.Code, rr.Body.String())
 	}

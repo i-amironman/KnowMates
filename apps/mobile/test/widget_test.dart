@@ -42,7 +42,7 @@ void main() {
     );
     expect(find.text('Emma Thompson'), findsOneWidget);
     expect(find.text('4.9'), findsNothing);
-    expect(find.textContaining('Online'), findsNothing);
+    expect(find.text('Online'), findsOneWidget);
   });
 
   testWidgets('welcome shows wordmark and get started', (tester) async {
@@ -66,6 +66,7 @@ void main() {
       MaterialApp(home: WelcomeScreen(onGetStarted: () => called = true)),
     );
 
+    await tester.ensureVisible(find.byKey(const Key('get_started')));
     await tester.tap(find.byKey(const Key('get_started')));
 
     expect(called, isTrue);
@@ -73,8 +74,15 @@ void main() {
 
   testWidgets('sign up blocks a birth year that is under 18', (tester) async {
     await tester.pumpWidget(MaterialApp(home: SignUpScreen(onSubmit: (_) {})));
+    await tester.enterText(find.byKey(const Key('display_name')), 'Test User');
+    await tester.tap(find.text('Male'));
     await tester.enterText(find.byKey(const Key('birth')), '2010-01-01');
-    await tester.tap(find.byKey(const Key('submit_sign_up')));
+    await tester.scrollUntilVisible(
+      find.text('Create account'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Create account'));
     await tester.pump();
     expect(find.text('You need to be 18 or older.'), findsOneWidget);
   });

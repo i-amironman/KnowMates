@@ -36,6 +36,7 @@ func TestStarterGrantOnce(t *testing.T) {
 	}
 	if err := s.UpdateProfile(ctx, uid, ProfilePatch{
 		DisplayName: strPtr("Alex"),
+		Gender:      strPtr("male"),
 	}); err != nil {
 		t.Fatal(err)
 	}

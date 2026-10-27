@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 
 	"knowmates/services/api/internal/avatar"
 	"knowmates/services/api/internal/mail"
@@ -31,6 +32,8 @@ type Deps struct {
 	PublicHost    string
 	Devices       DeviceStore
 	Push          pushPusher
+	Notifications NotificationStore
+	Chats         ChatStore
 }
 
 type pushPusher interface {
@@ -61,6 +64,9 @@ type Server struct {
 	publicHost    string
 	devices       DeviceStore
 	push          pushPusher
+	notifications NotificationStore
+	chats         ChatStore
+	assetDir      string
 }
 
 func NewServer(d Deps) *Server {
@@ -88,6 +94,13 @@ func NewServer(d Deps) *Server {
 		publicHost:    d.PublicHost,
 		devices:       d.Devices,
 		push:          d.Push,
+		notifications: d.Notifications,
+		chats:         d.Chats,
+		assetDir:      strings.TrimSpace(os.Getenv("ASSET_DIR")),
+	}
+	if s.assetDir != "" {
+		fs := http.FileServer(http.Dir(s.assetDir))
+		s.mux.Handle("/avatars/", http.StripPrefix("/avatars/", fs))
 	}
 	if s.publicHost == "" {
 		s.publicHost = os.Getenv("PUBLIC_HOST")
@@ -112,6 +125,14 @@ func NewServer(d Deps) *Server {
 	s.mux.HandleFunc("POST /v1/requests/{id}/accept", s.WithUser(s.acceptRequest))
 	s.mux.HandleFunc("POST /v1/requests/{id}/decline", s.WithUser(s.declineRequest))
 	s.mux.HandleFunc("POST /v1/requests/{id}/cancel", s.WithUser(s.cancelRequest))
+	s.mux.HandleFunc("GET /v1/notifications", s.WithUser(s.getNotifications))
+	s.mux.HandleFunc("GET /v1/notifications/unread-count", s.WithUser(s.getUnreadNotificationCount))
+	s.mux.HandleFunc("POST /v1/notifications/read", s.WithUser(s.postNotificationsRead))
+	s.mux.HandleFunc("GET /v1/chats", s.WithUser(s.getChats))
+	s.mux.HandleFunc("GET /v1/chats/{id}", s.WithUser(s.getChat))
+	s.mux.HandleFunc("PUT /v1/chats/{id}/key", s.WithUser(s.putChatKey))
+	s.mux.HandleFunc("GET /v1/chats/{id}/messages", s.WithUser(s.getChatMessages))
+	s.mux.HandleFunc("POST /v1/chats/{id}/messages", s.WithUser(s.postChatMessage))
 	s.mux.HandleFunc("GET /v1/sessions", s.WithUser(s.getSessions))
 	s.mux.HandleFunc("POST /v1/sessions", s.WithUser(s.postSession))
 	s.mux.HandleFunc("POST /v1/sessions/{id}/complete", s.WithUser(s.completeSession))

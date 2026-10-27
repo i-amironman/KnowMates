@@ -61,6 +61,7 @@ func (s *Server) patchMe(w http.ResponseWriter, r *http.Request) {
 		Bio         *string  `json:"bio"`
 		Languages   []string `json:"languages"`
 		Timezone    *string  `json:"timezone"`
+		Gender      *string  `json:"gender"`
 		Ready       *bool    `json:"ready"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&in); err != nil {
@@ -78,8 +79,13 @@ func (s *Server) patchMe(w http.ResponseWriter, r *http.Request) {
 		Bio:         in.Bio,
 		Languages:   in.Languages,
 		Timezone:    in.Timezone,
+		Gender:      in.Gender,
 	}
 	if err := s.profiles.UpdateProfile(r.Context(), uid, patch); err != nil {
+		if errors.Is(err, store.ErrInvalidGender) {
+			badRequest(w, "invalid_gender")
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 		return
 	}

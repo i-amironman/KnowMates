@@ -15,7 +15,8 @@ import (
 func markReady(t *testing.T, ctx context.Context, s *store.Store, user uuid.UUID, teach, learn []store.SkillLevel) {
 	t.Helper()
 	name := "User " + user.String()[:8]
-	if err := s.UpdateProfile(ctx, user, store.ProfilePatch{DisplayName: &name}); err != nil {
+	gender := "male"
+	if err := s.UpdateProfile(ctx, user, store.ProfilePatch{DisplayName: &name, Gender: &gender}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReplaceSkills(ctx, user, teach, learn); err != nil {

@@ -38,7 +38,7 @@ func TestReview(t *testing.T) {
 	}
 	learner, _ := uuid.Parse(learnerU.ID)
 	nameL := "Learner"
-	if err := s.UpdateProfile(ctx, learner, ProfilePatch{DisplayName: &nameL}); err != nil {
+	if err := s.UpdateProfile(ctx, learner, ProfilePatch{DisplayName: &nameL, Gender: strPtr("female")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReplaceSkills(ctx, learner,
@@ -59,7 +59,7 @@ func TestReview(t *testing.T) {
 	}
 	teacher, _ := uuid.Parse(teacherU.ID)
 	nameT := "Teacher"
-	if err := s.UpdateProfile(ctx, teacher, ProfilePatch{DisplayName: &nameT}); err != nil {
+	if err := s.UpdateProfile(ctx, teacher, ProfilePatch{DisplayName: &nameT, Gender: strPtr("male")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReplaceSkills(ctx, teacher, []SkillLevel{{SkillID: skill, Proficiency: 4}}, []SkillLevel{{SkillID: learnOther, Proficiency: 2}}); err != nil {

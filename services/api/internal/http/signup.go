@@ -35,10 +35,12 @@ func badRequest(w http.ResponseWriter, msg string) {
 
 func (s *Server) signUp(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Email     string `json:"email"`
-		Password  string `json:"password"`
-		BirthDate string `json:"birth_date"`
-		Timezone  string `json:"timezone"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		BirthDate   string `json:"birth_date"`
+		Timezone    string `json:"timezone"`
+		DisplayName string `json:"displayName"`
+		Gender      string `json:"gender"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&in); err != nil {
 		badRequest(w, "invalid_json")
@@ -70,6 +72,16 @@ func (s *Server) signUp(w http.ResponseWriter, r *http.Request) {
 		badRequest(w, "underage")
 		return
 	}
+	displayName := strings.TrimSpace(in.DisplayName)
+	if displayName == "" {
+		badRequest(w, "display_name_required")
+		return
+	}
+	gender := strings.TrimSpace(in.Gender)
+	if gender != "male" && gender != "female" {
+		badRequest(w, "invalid_gender")
+		return
+	}
 	if s.users == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
 		return
@@ -86,6 +98,23 @@ func (s *Server) signUp(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 	default:
+		if s.profiles == nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
+			return
+		}
+		if uid, parseErr := uuid.Parse(u.ID); parseErr == nil {
+			if err := s.profiles.UpdateProfile(r.Context(), uid, store.ProfilePatch{
+				DisplayName: &displayName,
+				Gender:      &gender,
+			}); err != nil {
+				if errors.Is(err, store.ErrInvalidGender) {
+					badRequest(w, "invalid_gender")
+					return
+				}
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+				return
+			}
+		}
 		if len(s.authSecret) < 32 || s.sessions == nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})
 			return

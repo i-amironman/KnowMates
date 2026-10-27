@@ -9,6 +9,7 @@ import '../api/client.dart';
 import '../auth/auth_controller.dart';
 import '../call/join_window.dart';
 import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 
 class SessionsScreen extends StatefulWidget {
   const SessionsScreen({super.key, required this.auth});
@@ -211,10 +212,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        title: const Text('Sessions'),
-      ),
+      appBar: const AppTopBar(title: 'Sessions'),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.magenta))
           : RefreshIndicator(
@@ -224,10 +222,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   if (_acceptedRequests.isNotEmpty) ...[
-                    const Text(
-                      'Schedule a session',
-                      style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
-                    ),
+                    const AppSectionHeader('Schedule a session'),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       dropdownColor: AppColors.card,
@@ -266,24 +261,16 @@ class _SessionsScreenState extends State<SessionsScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    FilledButton(
+                    AppGradientButton(
+                      label: 'Book session',
                       onPressed: _schedule,
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.magenta),
-                      child: const Text('Book session'),
                     ),
                     const SizedBox(height: 24),
                   ],
                   for (final s in _sessions) ...[
-                    Card(
-                      color: AppColors.card,
+                    AppGlassCard(
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.cardEdge),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
+                      child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
@@ -323,7 +310,6 @@ class _SessionsScreenState extends State<SessionsScreen> {
                             ),
                           ],
                         ),
-                      ),
                     ),
                   ],
                   if (_sessions.isEmpty)

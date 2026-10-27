@@ -10,6 +10,8 @@ import (
 
 var ErrProfileIncomplete = errors.New("store: profile incomplete for ready")
 
+var ErrInvalidGender = errors.New("store: invalid gender")
+
 type SkillLevel struct {
 	SkillID     uuid.UUID
 	Proficiency int
@@ -26,6 +28,7 @@ type ProfilePatch struct {
 	Bio         *string
 	Languages   []string
 	Timezone    *string
+	Gender      *string
 }
 
 type UserSkill struct {
@@ -52,6 +55,7 @@ type Me struct {
 	Learn              []UserSkill `json:"learn"`
 	Availability       []AvailSlot `json:"availability"`
 	Balance            int         `json:"balance"`
+	Gender             string      `json:"gender"`
 	ProfileReady       bool        `json:"profileReady"`
 	SessionsCompleted  int         `json:"sessionsCompleted"`
 	RatingAvg          float64     `json:"ratingAvg"`
@@ -61,17 +65,24 @@ type Me struct {
 }
 
 func (s *Store) UpdateProfile(ctx context.Context, userID uuid.UUID, p ProfilePatch) error {
-	if p.DisplayName == nil && p.Bio == nil && p.Languages == nil && p.Timezone == nil {
+	if p.DisplayName == nil && p.Bio == nil && p.Languages == nil && p.Timezone == nil && p.Gender == nil {
 		return nil
+	}
+	if p.Gender != nil {
+		g := *p.Gender
+		if g != "male" && g != "female" {
+			return ErrInvalidGender
+		}
 	}
 	_, err := s.pool.Exec(ctx, `
 		UPDATE users SET
 			display_name = COALESCE($2, display_name),
 			bio = COALESCE($3, bio),
 			languages = COALESCE($4, languages),
-			timezone = COALESCE($5, timezone)
+			timezone = COALESCE($5, timezone),
+			gender = COALESCE($6, gender)
 		WHERE id = $1`,
-		userID, p.DisplayName, p.Bio, p.Languages, p.Timezone)
+		userID, p.DisplayName, p.Bio, p.Languages, p.Timezone, p.Gender)
 	return err
 }
 
@@ -150,14 +161,14 @@ func (s *Store) MarkReady(ctx context.Context, userID uuid.UUID) error {
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	var displayName string
-	if err := tx.QueryRow(ctx, `SELECT display_name FROM users WHERE id = $1`, userID).Scan(&displayName); err != nil {
+	var displayName, gender string
+	if err := tx.QueryRow(ctx, `SELECT display_name, gender FROM users WHERE id = $1`, userID).Scan(&displayName, &gender); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNoSuchUser
 		}
 		return err
 	}
-	if displayName == "" {
+	if displayName == "" || gender == "" {
 		return ErrProfileIncomplete
 	}
 	var teachN, learnN, slotN int
@@ -172,6 +183,9 @@ func (s *Store) MarkReady(ctx context.Context, userID uuid.UUID) error {
 	}
 	if teachN < 1 || learnN < 1 || slotN < 1 {
 		return ErrProfileIncomplete
+	}
+	if err := s.assignPoolAvatarIfEmpty(ctx, tx, userID, gender); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE users SET profile_ready = true WHERE id = $1`, userID); err != nil {
 		return err
@@ -212,9 +226,9 @@ func (s *Store) Me(ctx context.Context, userID uuid.UUID) (Me, error) {
 	var m Me
 	m.ID = userID
 	err := s.pool.QueryRow(ctx, `
-		SELECT email::text, display_name, bio, languages, timezone, avatar_path, profile_ready
+		SELECT email::text, display_name, bio, languages, timezone, avatar_path, gender, profile_ready
 		FROM users WHERE id = $1`, userID).Scan(
-		&m.Email, &m.DisplayName, &m.Bio, &m.Languages, &m.Timezone, &m.AvatarURL, &m.ProfileReady)
+		&m.Email, &m.DisplayName, &m.Bio, &m.Languages, &m.Timezone, &m.AvatarURL, &m.Gender, &m.ProfileReady)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Me{}, ErrNoSuchUser
 	}

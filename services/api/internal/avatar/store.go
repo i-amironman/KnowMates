@@ -12,6 +12,7 @@ import (
 // AvatarStore persists recompressed avatar JPEGs.
 type AvatarStore interface {
 	PutJPEG(ctx context.Context, userID uuid.UUID, body []byte) (url string, err error)
+	PutPoolJPEG(ctx context.Context, poolID uuid.UUID, body []byte) (url string, err error)
 }
 
 // DiskStore writes under Dir and returns PublicBase URLs.
@@ -36,4 +37,22 @@ func (d *DiskStore) PutJPEG(ctx context.Context, userID uuid.UUID, body []byte) 
 	}
 	base := strings.TrimRight(d.PublicBase, "/")
 	return base + "/avatars/" + userID.String() + ".jpg", nil
+}
+
+func (d *DiskStore) PutPoolJPEG(ctx context.Context, poolID uuid.UUID, body []byte) (string, error) {
+	_ = ctx
+	fitted, err := FitJPEG(body, 512, 75)
+	if err != nil {
+		return "", err
+	}
+	poolDir := filepath.Join(d.Dir, "pool")
+	if err := os.MkdirAll(poolDir, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(poolDir, poolID.String()+".jpg")
+	if err := os.WriteFile(path, fitted, 0o644); err != nil {
+		return "", err
+	}
+	base := strings.TrimRight(d.PublicBase, "/")
+	return base + "/avatars/pool/" + poolID.String() + ".jpg", nil
 }

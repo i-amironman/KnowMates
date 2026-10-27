@@ -4,13 +4,22 @@ import 'package:flutter/material.dart';
 
 import '../api/client.dart';
 import '../auth/auth_controller.dart';
+import '../inbox/inbox_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/home_orb.dart';
+import '../widgets/ui_kit.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.auth});
+  const HomeScreen({
+    super.key,
+    required this.auth,
+    required this.inbox,
+    this.onOpenNotifications,
+  });
 
   final AuthController auth;
+  final InboxController inbox;
+  final VoidCallback? onOpenNotifications;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -41,9 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final me = jsonDecode(resp.body) as Map<String, dynamic>;
       _sessionsCompleted = me['sessionsCompleted'] as int? ?? 0;
       _balance = me['balance'] as int? ?? 0;
-      _teaching = me['teachCount'] as int? ??
+      _teaching =
+          me['teachCount'] as int? ??
           (me['teach'] is List ? (me['teach'] as List).length : 0);
-      _learning = me['learnCount'] as int? ??
+      _learning =
+          me['learnCount'] as int? ??
           (me['learn'] is List ? (me['learn'] as List).length : 0);
       _ratingAvg = (me['ratingAvg'] as num?)?.toDouble() ?? 0;
       _ratingCount = me['ratingCount'] as int? ?? 0;
@@ -55,189 +66,214 @@ class _HomeScreenState extends State<HomeScreen> {
         _learnSkillName = '';
       }
     }
+    await widget.inbox.refresh(_client);
     if (mounted) {
       setState(() => _loading = false);
     }
   }
 
   String get _ratingText =>
-      _ratingCount < 3 ? 'New' : '${_ratingAvg.toStringAsFixed(1)}/5';
+      _ratingCount < 3 ? 'New' : '${_ratingAvg.toStringAsFixed(1)}/5.0';
+
+  Widget _notificationButton() {
+    final count = widget.inbox.unread;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _glassButton(
+          Icons.notifications_none_rounded,
+          'Notifications',
+          widget.onOpenNotifications ?? () {},
+        ),
+        if (count > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: const BoxDecoration(
+                color: AppColors.pink,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              child: Text(
+                count > 9 ? '9+' : '$count',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.text, fontSize: 10, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _glassButton(IconData icon, String tooltip, VoidCallback onTap) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.text.withValues(alpha: 0.06),
+        shape: const CircleBorder(
+          side: BorderSide(color: AppColors.glassBorder),
+        ),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox.square(
+            dimension: 52,
+            child: Icon(icon, color: AppColors.text, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+      children: [
+        Row(
+          children: [
+            _glassButton(Icons.refresh_rounded, 'Refresh', _load),
+            const Expanded(
+              child: Text(
+                'Welcome back,',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            _notificationButton(),
+          ],
+        ),
+        const SizedBox(height: 28),
+        const Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'AI',
+                style: TextStyle(color: Color(0xFFCB2DBE)),
+              ),
+              TextSpan(text: '-Powered Skill'),
+            ],
+          ),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.text,
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.text.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: const Text(
+              'Exchange',
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Advanced features for seamless learning',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.text.withValues(alpha: 0.65),
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Center(child: HomeOrb()),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F0D11),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.glassBorder),
+          ),
+          child: GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            childAspectRatio: 1.85,
+            children: [
+              AppStatTile(
+                label: 'Sessions',
+                value: '$_sessionsCompleted',
+                icon: Icons.speed_rounded,
+                iconColor: const Color(0xFFFF9F43),
+              ),
+              AppStatTile(
+                label: 'Time Tokens',
+                value: '$_balance',
+                icon: Icons.hourglass_bottom_rounded,
+                iconColor: const Color(0xFF7C8CFF),
+              ),
+              AppStatTile(
+                label: 'Teaching',
+                value: _teaching.toStringAsFixed(1),
+                icon: Icons.trending_up_rounded,
+                iconColor: const Color(0xFFFF4D8D),
+              ),
+              AppStatTile(
+                label: 'Learning',
+                value: _learning.toStringAsFixed(1),
+                icon: Icons.menu_book_rounded,
+                iconColor: const Color(0xFF7ED957),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (_learnSkillName.isNotEmpty)
+          AppGradientHighlightCard(
+            title: _learnSkillName,
+            subtitle: '$_sessionsCompleted sessions · Rating: $_ratingText',
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.magenta))
-            : RefreshIndicator(
-                onRefresh: _load,
-                color: AppColors.magenta,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: _load,
-                          icon: const Icon(Icons.refresh, color: AppColors.muted),
-                          tooltip: 'Refresh',
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Welcome back,',
-                            style: TextStyle(color: AppColors.muted, fontSize: 16),
-                          ),
-                        ),
-                        const Offstage(
-                          offstage: true,
-                          child: Icon(Icons.notifications_outlined, color: AppColors.muted),
-                        ),
-                      ],
-                    ),
-                    const _HomeWordmark(),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Learn from people. Grow together.',
-                      style: TextStyle(color: AppColors.muted),
-                    ),
-                    const SizedBox(height: 24),
-                    const Center(child: HomeOrb()),
-                    const SizedBox(height: 24),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 1.6,
-                      children: [
-                        _StatCard(label: 'Sessions', value: '$_sessionsCompleted'),
-                        _StatCard(label: 'Time Tokens', value: '$_balance'),
-                        _StatCard(label: 'Teaching', value: '$_teaching'),
-                        _StatCard(label: 'Learning', value: '$_learning'),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    if (_learnSkillName.isNotEmpty)
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.cardEdge),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _learnSkillName,
-                                      style: const TextStyle(
-                                        color: AppColors.text,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '$_sessionsCompleted sessions',
-                                      style: const TextStyle(color: AppColors.muted),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                _ratingText,
-                                style: const TextStyle(
-                                  color: AppColors.star,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardEdge),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(label, style: const TextStyle(color: AppColors.muted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeWordmark extends StatelessWidget {
-  const _HomeWordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Text(
-          'Know',
-          style: TextStyle(
-            color: AppColors.magenta,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const AppAmbientGlow(),
+          SafeArea(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.magenta),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    color: AppColors.magenta,
+                    child: _body(context),
+                  ),
           ),
-        ),
-        Container(
-          margin: const EdgeInsets.only(left: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.cardEdge),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Text(
-            'Mates',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

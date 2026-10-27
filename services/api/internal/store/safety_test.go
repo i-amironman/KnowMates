@@ -37,7 +37,7 @@ func TestBlockedTeacherHidden(t *testing.T) {
 		t.Fatal(err)
 	}
 	viewer, _ := uuid.Parse(viewerU.ID)
-	if err := s.UpdateProfile(ctx, viewer, ProfilePatch{DisplayName: strPtr("Viewer"), Languages: []string{"en"}}); err != nil {
+	if err := s.UpdateProfile(ctx, viewer, ProfilePatch{DisplayName: strPtr("Viewer"), Languages: []string{"en"}, Gender: strPtr("female")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReplaceSkills(ctx, viewer, []SkillLevel{{SkillID: learnOther, Proficiency: 3}}, []SkillLevel{{SkillID: skill, Proficiency: 2}}); err != nil {
@@ -56,7 +56,7 @@ func TestBlockedTeacherHidden(t *testing.T) {
 	}
 	teacher, _ := uuid.Parse(teacherU.ID)
 	name := "Teacher"
-	if err := s.UpdateProfile(ctx, teacher, ProfilePatch{DisplayName: &name, Languages: []string{"en"}}); err != nil {
+	if err := s.UpdateProfile(ctx, teacher, ProfilePatch{DisplayName: &name, Languages: []string{"en"}, Gender: strPtr("male")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReplaceSkills(ctx, teacher, []SkillLevel{{SkillID: skill, Proficiency: 4}}, []SkillLevel{{SkillID: learnOther, Proficiency: 2}}); err != nil {

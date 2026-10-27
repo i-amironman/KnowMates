@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key, required this.onSubmit});
@@ -41,40 +45,66 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sign in')),
+    return AppScreen(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        leading: BackButton(color: AppColors.muted.withValues(alpha: 0.9)),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         children: [
+          const AppWordmark(centered: true, size: 26),
+          const SizedBox(height: 28),
+          const Text(
+            'Welcome back',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Sign in to continue learning with your KnowMates.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, height: 1.4),
+          ),
+          const SizedBox(height: 32),
           TextField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Email'),
+            style: const TextStyle(color: AppColors.text),
+            decoration: appInputDecoration(label: 'Email'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             controller: _password,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+            style: const TextStyle(color: AppColors.text),
+            decoration: appInputDecoration(label: 'Password'),
           ),
-          const SizedBox(height: 24),
-          FilledButton(
+          const SizedBox(height: 28),
+          AppGradientButton(
+            label: 'Sign in',
+            loading: _busy,
             onPressed: _busy ? null : _submit,
-            child: _busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Sign in'),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.pink),
             ),
           ],
+          const SizedBox(height: 16),
+          Center(
+            child: AppTextLink(
+              label: 'New here? Create an account',
+              onTap: () => context.push('/sign-up'),
+            ),
+          ),
         ],
       ),
     );

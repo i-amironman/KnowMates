@@ -6,6 +6,7 @@ import '../api/client.dart';
 import '../auth/auth_controller.dart';
 import '../credit/ledger_label.dart';
 import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key, required this.auth});
@@ -49,10 +50,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        title: const Text('Time wallet'),
-      ),
+      appBar: const AppTopBar(title: 'Time wallet'),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.magenta))
           : RefreshIndicator(
@@ -61,29 +59,48 @@ class _WalletScreenState extends State<WalletScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  Text(
-                    '$_balance',
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w800,
+                  AppGlassCard(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$_balance',
+                          style: const TextStyle(
+                            color: AppColors.text,
+                            fontSize: 44,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text('Time Tokens', style: TextStyle(color: AppColors.muted)),
+                      ],
                     ),
                   ),
-                  const Text('Time Tokens', style: TextStyle(color: AppColors.muted)),
                   const SizedBox(height: 24),
+                  const AppSectionHeader('Activity'),
                   for (final e in _entries)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        ledgerLabel(e.reason),
-                        style: const TextStyle(color: AppColors.text),
-                      ),
-                      trailing: Text(
-                        e.delta >= 0 ? '+${e.delta}' : '${e.delta}',
-                        style: TextStyle(
-                          color: e.delta >= 0 ? AppColors.star : AppColors.muted,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    AppGlassCard(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              ledgerLabel(e.reason),
+                              style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Text(
+                            e.delta >= 0 ? '+${e.delta}' : '${e.delta}',
+                            style: TextStyle(
+                              color: e.delta >= 0 ? AppColors.star : AppColors.muted,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],

@@ -68,4 +68,11 @@ func TestOnlyTeacherCanAccept(t *testing.T) {
 	if status != "accepted" {
 		t.Fatalf("status %q want accepted", status)
 	}
+	threadID, err := s.ChatThreadIDForRequest(ctx, req.ID)
+	if err != nil {
+		t.Fatalf("chat thread: %v", err)
+	}
+	if threadID == uuid.Nil {
+		t.Fatal("expected chat thread after accept")
+	}
 }

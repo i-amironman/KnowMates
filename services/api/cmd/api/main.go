@@ -22,9 +22,11 @@ func main() {
 		addr = ":8080"
 	}
 	var deps apihttp.Deps
+	ctx := context.Background()
+	var st *store.Store
 	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
-		ctx := context.Background()
-		st, err := store.Open(ctx, dsn)
+		var err error
+		st, err = store.Open(ctx, dsn)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -45,6 +47,8 @@ func main() {
 		deps.VerifyTokens = st
 		deps.UserEmail = st
 		deps.Devices = st
+		deps.Notifications = st
+		deps.Chats = st
 		if readDSN := os.Getenv("DATABASE_READ_URL"); readDSN != "" {
 			if err := st.AttachReadPool(ctx, readDSN); err != nil {
 				log.Fatal(err)
@@ -52,7 +56,17 @@ func main() {
 		}
 	}
 	if dir := os.Getenv("ASSET_DIR"); dir != "" {
-		deps.Avatars = &avatar.DiskStore{Dir: dir, PublicBase: os.Getenv("PUBLIC_BASE")}
+		publicBase := os.Getenv("PUBLIC_BASE")
+		if publicBase == "" {
+			publicBase = "http://localhost:8080"
+		}
+		disk := &avatar.DiskStore{Dir: dir, PublicBase: publicBase}
+		deps.Avatars = disk
+		if st != nil {
+			if err := avatar.EnsureDefaultPool(ctx, st, disk); err != nil {
+				log.Fatal("default avatars: ", err)
+			}
+		}
 	}
 	if sec := os.Getenv("AUTH_SECRET"); sec != "" {
 		deps.Secret = []byte(sec)

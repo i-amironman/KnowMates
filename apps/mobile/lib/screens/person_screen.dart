@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../api/client.dart';
+import '../mock/demo_requests.dart';
 import '../models/person.dart';
 import '../theme/app_colors.dart';
+import '../widgets/person_image.dart';
+import '../widgets/ui_kit.dart';
 
 class PersonScreen extends StatefulWidget {
   const PersonScreen({
@@ -24,14 +27,49 @@ class _PersonScreenState extends State<PersonScreen> {
   final _goalCtrl = TextEditingController();
   String? _skillId;
   bool _sending = false;
-  String? _error;
+
+  static String _teachOptionValue(TeachSkill skill, int index) {
+    if (skill.skillId.isNotEmpty) {
+      return skill.skillId;
+    }
+    return 'local-$index-${skill.name}';
+  }
+
+  String? _apiSkillIdForSelection(String? selected) {
+    if (selected == null) {
+      return widget.learnSkillId;
+    }
+    for (var i = 0; i < widget.person.teach.length; i++) {
+      final t = widget.person.teach[i];
+      if (_teachOptionValue(t, i) == selected) {
+        return t.skillId.isNotEmpty ? t.skillId : widget.learnSkillId;
+      }
+    }
+    return widget.learnSkillId;
+  }
 
   @override
   void initState() {
     super.initState();
     if (widget.person.teach.isNotEmpty) {
-      _skillId = widget.person.teach.first.skillId;
+      _skillId = _teachOptionValue(widget.person.teach.first, 0);
     }
+    _goalCtrl.addListener(() => setState(() {}));
+  }
+
+  bool get _goalValid => _goalCtrl.text.trim().runes.length >= 8;
+
+  String? get _selectedSkillName {
+    final selected = _apiSkillIdForSelection(_skillId);
+    if (selected == null) {
+      return null;
+    }
+    for (final t in widget.person.teach) {
+      if (t.skillId == selected) {
+        return t.name;
+      }
+    }
+    return widget.person.teach.isNotEmpty ? widget.person.teach.first.name : null;
   }
 
   @override
@@ -95,15 +133,20 @@ class _PersonScreenState extends State<PersonScreen> {
 
   Future<void> _requestSession() async {
     final goal = _goalCtrl.text.trim();
-    final skillId = _skillId ?? widget.learnSkillId;
-    if (skillId == null || skillId.isEmpty) {
-      setState(() => _error = 'Pick a skill to learn.');
+    final skillId = _apiSkillIdForSelection(_skillId);
+    if (skillId == null || skillId.isEmpty || !_goalValid) {
       return;
     }
-    setState(() {
-      _sending = true;
-      _error = null;
-    });
+    setState(() => _sending = true);
+
+    if (!isUuid(widget.person.id) || !isUuid(skillId)) {
+      if (mounted) {
+        setState(() => _sending = false);
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+
     final resp = await widget.client.post('/v1/requests', body: {
       'teacherId': widget.person.id,
       'skillId': skillId,
@@ -116,10 +159,7 @@ class _PersonScreenState extends State<PersonScreen> {
       Navigator.of(context).pop();
       return;
     }
-    setState(() {
-      _sending = false;
-      _error = apiErrorMessage(resp) ?? 'Could not send request.';
-    });
+    setState(() => _sending = false);
   }
 
   @override
@@ -128,8 +168,11 @@ class _PersonScreenState extends State<PersonScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        title: Text(person.displayName),
+        backgroundColor: Colors.transparent,
+        title: Text(
+          person.displayName,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -209,8 +252,11 @@ class _PersonScreenState extends State<PersonScreen> {
               dropdownColor: AppColors.card,
               decoration: const InputDecoration(labelText: 'Skill'),
               items: [
-                for (final t in person.teach)
-                  DropdownMenuItem(value: t.skillId, child: Text(t.name)),
+                for (var i = 0; i < person.teach.length; i++)
+                  DropdownMenuItem(
+                    value: _teachOptionValue(person.teach[i], i),
+                    child: Text(person.teach[i].name),
+                  ),
               ],
               onChanged: (v) => setState(() => _skillId = v),
             ),
@@ -221,28 +267,15 @@ class _PersonScreenState extends State<PersonScreen> {
             style: const TextStyle(color: AppColors.text),
             decoration: const InputDecoration(
               labelText: 'Your learning goal',
-              hintText: 'What do you want to get from this session?',
+              hintText: 'What do you want to get from this session? (min. 8 characters)',
             ),
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: AppColors.pink)),
-          ],
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _sending ? null : _requestSession,
-            icon: _sending
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.text),
-                  )
-                : const Icon(Icons.favorite),
-            label: const Text('Request session'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.magenta,
-              minimumSize: const Size.fromHeight(52),
-            ),
+          AppGradientButton(
+            label: 'Request session',
+            icon: Icons.favorite_rounded,
+            loading: _sending,
+            onPressed: _sending || !_goalValid ? null : _requestSession,
           ),
         ],
       ),
@@ -257,27 +290,7 @@ class _LargeAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (person.avatarUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 48,
-        backgroundImage: NetworkImage(person.avatarUrl),
-      );
-    }
-    final initial = person.displayName.isNotEmpty
-        ? person.displayName.trim()[0].toUpperCase()
-        : '?';
-    return CircleAvatar(
-      radius: 48,
-      backgroundColor: AppColors.magenta,
-      child: Text(
-        initial,
-        style: const TextStyle(
-          color: AppColors.text,
-          fontSize: 40,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+    return PersonAvatar(person: person, radius: 48);
   }
 }
 

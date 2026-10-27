@@ -14,6 +14,38 @@ class AppTheme {
       onSecondary: AppColors.text,
       onSurface: AppColors.text,
     ),
-    textTheme: const TextTheme(bodyMedium: TextStyle(color: AppColors.text)),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.bg,
+      foregroundColor: AppColors.text,
+      elevation: 0,
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: AppColors.card,
+      indicatorColor: AppColors.magenta.withValues(alpha: 0.22),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          color: states.contains(WidgetState.selected)
+              ? AppColors.text
+              : AppColors.muted,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    textTheme: const TextTheme(
+      bodyMedium: TextStyle(color: AppColors.text),
+      titleLarge: TextStyle(
+        color: AppColors.text,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.card,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.cardEdge),
+      ),
+    ),
   );
 }

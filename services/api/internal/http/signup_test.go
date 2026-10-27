@@ -8,8 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"knowmates/services/api/internal/store"
 )
+
+const validSignUpBody = `{"email":"a@b.co","password":"1234567890","birth_date":"1990-01-01","timezone":"UTC","displayName":"Alex","gender":"male"}`
 
 type fakeUsers struct{ calls int }
 
@@ -29,11 +33,34 @@ func (f *fakeSessions) RotateRefresh(context.Context, string, string, time.Time)
 }
 func (f *fakeSessions) RevokeRefresh(context.Context, string, string) error { return nil }
 
+type signupProfileStub struct {
+	updates int
+}
+
+func (signupProfileStub) Me(context.Context, uuid.UUID) (store.Me, error) {
+	panic("unused")
+}
+func (s *signupProfileStub) UpdateProfile(context.Context, uuid.UUID, store.ProfilePatch) error {
+	s.updates++
+	return nil
+}
+func (signupProfileStub) ReplaceSkills(context.Context, uuid.UUID, []store.SkillLevel, []store.SkillLevel) error {
+	panic("unused")
+}
+func (signupProfileStub) ReplaceAvailability(context.Context, uuid.UUID, []store.Slot) error {
+	panic("unused")
+}
+func (signupProfileStub) MarkReady(context.Context, uuid.UUID) error { panic("unused") }
+func (signupProfileStub) SetAvatarURL(context.Context, uuid.UUID, string) error {
+	panic("unused")
+}
+
 var testSecret = []byte("0123456789abcdef0123456789abcdef")
 
 func testServer(f *fakeUsers) *Server {
 	sess := &fakeSessions{}
-	return NewServer(Deps{Users: f, Sessions: sess, Secret: testSecret})
+	prof := &signupProfileStub{}
+	return NewServer(Deps{Users: f, Sessions: sess, Profiles: prof, Secret: testSecret})
 }
 
 func signUp(t *testing.T, s *Server, body string) *httptest.ResponseRecorder {
@@ -66,7 +93,7 @@ func TestSignUpShortPassword(t *testing.T) {
 func TestSignUpOK(t *testing.T) {
 	f := &fakeUsers{}
 	s := testServer(f)
-	rr := signUp(t, s, `{"email":"a@b.co","password":"1234567890","birth_date":"1990-01-01","timezone":"UTC"}`)
+	rr := signUp(t, s, validSignUpBody)
 	if rr.Code != 201 || f.calls != 1 {
 		t.Fatalf("got %d %q calls=%d", rr.Code, rr.Body.String(), f.calls)
 	}

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -7,6 +8,9 @@ import '../auth/auth_controller.dart';
 import '../models/person.dart';
 import '../setup/weekday.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_layout.dart';
+import '../widgets/person_image.dart';
+import '../widgets/ui_kit.dart';
 
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({
@@ -16,7 +20,8 @@ class DiscoverScreen extends StatelessWidget {
     required this.onSkip,
     required this.onOpen,
     this.onRefresh,
-    this.filters,
+    this.onMenuTap,
+    this.profileAvatar,
   });
 
   final List<Person> people;
@@ -24,58 +29,86 @@ class DiscoverScreen extends StatelessWidget {
   final void Function(Person person) onSkip;
   final void Function(Person person) onOpen;
   final Future<void> Function()? onRefresh;
-  final Widget? filters;
+  final VoidCallback? onMenuTap;
+  final Widget? profileAvatar;
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
+    final listPadding = layout.screenPadding.copyWith(top: 4);
+
     final body = people.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
+            padding: listPadding,
             children: const [
-              SizedBox(height: 120),
+              SizedBox(height: 80),
               Center(
                 child: Text(
-                  'No partners match these filters yet.',
+                  'No mentors match yet. Try another skill or language filter, or check back when more members join.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.muted),
                 ),
               ),
             ],
           )
-        : ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            itemCount: people.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _DiscoverCard(
-                  person: people[index],
-                  onRequest: onRequest,
-                  onSkip: onSkip,
-                  onOpen: onOpen,
-                ),
-              );
-            },
+        : ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: listPadding,
+            children: [
+              _DiscoverCard(
+                person: people.first,
+                onRequest: onRequest,
+                onSkip: onSkip,
+                onOpen: onOpen,
+              ),
+            ],
           );
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        title: const Text('Discover'),
-        centerTitle: false,
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          ?filters,
-          Expanded(
-            child: onRefresh == null
-                ? body
-                : RefreshIndicator(
-                    onRefresh: onRefresh!,
-                    color: AppColors.magenta,
-                    child: body,
-                  ),
+          const AppAmbientGlow(),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppTopBar(
+                title: 'Discover',
+                showMenu: true,
+                showDiscoverMark: true,
+                glassChrome: true,
+                onMenu: onMenuTap,
+                trailing: profileAvatar ??
+                    ClipOval(
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.glassBorder, width: 1.5),
+                          color: AppColors.cardElevated,
+                        ),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: AppColors.muted,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+              ),
+              Expanded(
+                child: onRefresh == null
+                    ? body
+                    : RefreshIndicator(
+                        onRefresh: onRefresh!,
+                        color: AppColors.magenta,
+                        edgeOffset: 8,
+                        child: body,
+                      ),
+              ),
+            ],
           ),
         ],
       ),
@@ -100,6 +133,9 @@ class _DiscoverTabState extends State<DiscoverTab> {
   String _language = '';
   int? _weekday;
   bool _loading = true;
+  String _myInitial = '?';
+  String _myUserId = '';
+  String _myAvatarUrl = '';
 
   ApiClient get _client => widget.auth.client;
 
@@ -115,6 +151,12 @@ class _DiscoverTabState extends State<DiscoverTab> {
       final meResp = await _client.get('/v1/me');
       if (meResp.statusCode == 200) {
         final me = jsonDecode(meResp.body) as Map<String, dynamic>;
+        _myUserId = me['id'] as String? ?? '';
+        _myAvatarUrl = me['avatarUrl'] as String? ?? '';
+        final displayName = me['displayName'] as String? ?? '';
+        if (displayName.isNotEmpty) {
+          _myInitial = displayName.trim()[0].toUpperCase();
+        }
         final learn = me['learn'];
         final skills = <({String id, String name})>[];
         if (learn is List) {
@@ -158,9 +200,13 @@ class _DiscoverTabState extends State<DiscoverTab> {
     if (resp.statusCode == 200) {
       final map = jsonDecode(resp.body) as Map<String, dynamic>;
       final raw = map['people'];
-      _people = raw is List
+      final all = raw is List
           ? raw.cast<Map<String, dynamic>>().map(Person.fromJson).toList()
-          : const [];
+          : const <Person>[];
+      _people = [
+        for (final p in all)
+          if (p.id != _myUserId) p,
+      ];
     }
 
     if (mounted) {
@@ -174,6 +220,55 @@ class _DiscoverTabState extends State<DiscoverTab> {
     });
   }
 
+  void _openFilters() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.card,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Filters',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _DiscoverFilters(
+                learnSkills: _learnSkills,
+                skillId: _skillId,
+                language: _language,
+                weekday: _weekday,
+                onSkill: (id) {
+                  setState(() => _skillId = id);
+                  _load();
+                },
+                onLanguage: (code) {
+                  setState(() => _language = code);
+                  _load();
+                },
+                onWeekday: (day) {
+                  setState(() => _weekday = day);
+                  _load();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -185,30 +280,45 @@ class _DiscoverTabState extends State<DiscoverTab> {
       );
     }
 
+    if (_learnSkills.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Add at least one skill you want to learn in your profile setup to see mentors in Discover.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.muted.withValues(alpha: 0.9)),
+            ),
+          ),
+        ),
+      );
+    }
+
     return DiscoverScreen(
       people: _people,
       onRequest: (_) {},
       onSkip: _skip,
       onOpen: widget.onOpenPerson,
       onRefresh: () => _load(),
-      filters: _DiscoverFilters(
-        learnSkills: _learnSkills,
-        skillId: _skillId,
-        language: _language,
-        weekday: _weekday,
-        onSkill: (id) {
-          setState(() => _skillId = id);
-          _load();
-        },
-        onLanguage: (code) {
-          setState(() => _language = code);
-          _load();
-        },
-        onWeekday: (day) {
-          setState(() => _weekday = day);
-          _load();
-        },
-      ),
+      onMenuTap: _openFilters,
+      profileAvatar: _myAvatarUrl.isNotEmpty
+          ? CircleAvatar(
+              radius: 22,
+              backgroundImage: NetworkImage(_myAvatarUrl),
+            )
+          : CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.cardElevated,
+              child: Text(
+                _myInitial,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -236,63 +346,34 @@ class _DiscoverFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: [
-          for (final s in learnSkills)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(s.name),
-                selected: skillId == s.id,
-                onSelected: (_) => onSkill(s.id),
-                selectedColor: AppColors.magenta.withValues(alpha: 0.35),
-                checkmarkColor: AppColors.text,
-                labelStyle: TextStyle(
-                  color: skillId == s.id ? AppColors.text : AppColors.muted,
-                ),
-                side: const BorderSide(color: AppColors.cardEdge),
-              ),
-            ),
-          for (final code in _langs)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(code.isEmpty ? 'Any lang' : languageChipLabel(code)),
-                selected: language == code,
-                onSelected: (_) => onLanguage(code),
-                selectedColor: AppColors.magenta.withValues(alpha: 0.35),
-                checkmarkColor: AppColors.text,
-                labelStyle: TextStyle(
-                  color: language == code ? AppColors.text : AppColors.muted,
-                ),
-                side: const BorderSide(color: AppColors.cardEdge),
-              ),
-            ),
-          FilterChip(
-            label: const Text('Any day'),
-            selected: weekday == null,
-            onSelected: (_) => onWeekday(null),
-            selectedColor: AppColors.magenta.withValues(alpha: 0.35),
-            checkmarkColor: AppColors.text,
-            side: const BorderSide(color: AppColors.cardEdge),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final s in learnSkills)
+          AppFilterChip(
+            label: s.name,
+            selected: skillId == s.id,
+            onSelected: (_) => onSkill(s.id),
           ),
-          for (var d = 0; d < kApiWeekdayLabels.length; d++)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: FilterChip(
-                label: Text(apiWeekdayLabel(d)),
-                selected: weekday == d,
-                onSelected: (_) => onWeekday(d),
-                selectedColor: AppColors.magenta.withValues(alpha: 0.35),
-                checkmarkColor: AppColors.text,
-                side: const BorderSide(color: AppColors.cardEdge),
-              ),
-            ),
-        ],
-      ),
+        for (final code in _langs)
+          AppFilterChip(
+            label: code.isEmpty ? 'Any lang' : languageChipLabel(code),
+            selected: language == code,
+            onSelected: (_) => onLanguage(code),
+          ),
+        AppFilterChip(
+          label: 'Any day',
+          selected: weekday == null,
+          onSelected: (_) => onWeekday(null),
+        ),
+        for (var d = 0; d < kApiWeekdayLabels.length; d++)
+          AppFilterChip(
+            label: apiWeekdayLabel(d),
+            selected: weekday == d,
+            onSelected: (_) => onWeekday(d),
+          ),
+      ],
     );
   }
 }
@@ -312,172 +393,415 @@ class _DiscoverCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     final topProficiency = person.teach.isNotEmpty ? person.teach.first.proficiency : 1;
     final chips = person.teach.take(2).toList();
+    final experienceYears = (person.sessionsTaught / 6).round().clamp(1, 99);
+    final experienceLabel = '$experienceYears years experience';
+    final styleLabel =
+        topProficiency >= 3 ? 'Style' : proficiencyLabel(topProficiency);
+    final cardPad = layout.compact ? 12.0 : 16.0;
+    final avatarRadius = layout.veryCompact ? 20.0 : (layout.compact ? 22.0 : 24.0);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardEdge),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Avatar(person: person),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        person.displayName,
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+    return AppGlassCard(
+      padding: EdgeInsets.all(cardPad),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PersonAvatar(person: person, radius: avatarRadius),
+              SizedBox(width: layout.gap(12)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            person.displayName,
+                            style: TextStyle(
+                              color: AppColors.text,
+                              fontSize: layout.font(18),
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
                         ),
+                        if (person.sessionsTaught >= 10) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.verified_rounded,
+                            color: const Color(0xFF5AC8FA),
+                            size: layout.compact ? 16 : 18,
+                          ),
+                        ],
+                      ],
+                    ),
+                    SizedBox(height: layout.gap(4)),
+                    Text(
+                      experienceLabel,
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontSize: layout.font(13),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        person.bio,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.muted, height: 1.3),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+              AppGlassIconButton(
+                icon: Icons.bookmark_border_rounded,
+                size: layout.compact ? 36 : 40,
+                onPressed: () {},
+              ),
+            ],
+          ),
+          if (person.bio.isNotEmpty) ...[
+            SizedBox(height: layout.gap(10)),
+            Text(
+              person.bio,
+              maxLines: layout.veryCompact ? 2 : 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: layout.font(14),
+                height: 1.4,
+              ),
             ),
-            const SizedBox(height: 12),
+          ],
+          if (chips.isNotEmpty) ...[
+            SizedBox(height: layout.gap(12)),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final t in chips)
-                  _SkillChip(label: t.name, proficiency: t.proficiency),
-                for (final lang in person.languages)
-                  Chip(
-                    label: Text(languageChipLabel(lang)),
-                    backgroundColor: AppColors.bg,
-                    side: const BorderSide(color: AppColors.cardEdge),
-                    labelStyle: const TextStyle(color: AppColors.muted, fontSize: 12),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Text(
-                  '${person.sessionsTaught} sessions',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '${person.ratingCount} reviews',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  proficiencyLabel(topProficiency),
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                ),
-                if (person.showRating) ...[
-                  const Spacer(),
-                  const Icon(Icons.star, color: AppColors.star, size: 18),
-                  const SizedBox(width: 4),
-                  Text(
-                    person.ratingAvg.toStringAsFixed(1),
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  onPressed: () => onRequest(person),
-                  icon: const Icon(Icons.favorite_border, color: AppColors.magenta),
-                  tooltip: 'Request',
-                ),
-                IconButton(
-                  onPressed: () => onSkip(person),
-                  icon: const Icon(Icons.close, color: AppColors.muted),
-                  tooltip: 'Skip',
-                ),
-                IconButton(
-                  onPressed: () => onOpen(person),
-                  icon: const Icon(Icons.info_outline, color: AppColors.text),
-                  tooltip: 'Profile',
-                ),
+                for (final t in chips) _SkillTag(label: t.name),
               ],
             ),
           ],
+          SizedBox(height: layout.gap(14)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final photoHeight =
+                  layout.discoverPhotoHeight(constraints.maxWidth);
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(layout.compact ? 18 : 22),
+                child: SizedBox(
+                  height: photoHeight,
+                  width: constraints.maxWidth,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      personPortrait(person: person, fit: BoxFit.cover),
+                      Positioned(
+                        top: layout.gap(8),
+                        left: 0,
+                        right: 0,
+                        child: Center(child: _OnlineBadge()),
+                      ),
+                      Positioned(
+                        left: 4,
+                        right: 4,
+                        bottom: layout.gap(8),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AppDiscoverActionPill(
+                                icon: Icons.favorite_rounded,
+                                label: 'Like',
+                                accent: true,
+                                onPressed: () => onRequest(person),
+                              ),
+                              AppDiscoverActionPill(
+                                icon: Icons.close_rounded,
+                                label: 'Cancel',
+                                onPressed: () => onSkip(person),
+                              ),
+                              AppDiscoverActionPill(
+                                icon: Icons.info_outline_rounded,
+                                label: 'Information',
+                                onPressed: () => onOpen(person),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          SizedBox(height: layout.gap(14)),
+          Container(
+            padding: EdgeInsets.all(layout.compact ? 12 : 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141416).withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(layout.compact ? 16 : 20),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Skills',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontSize: layout.font(16),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (person.showRating) ...[
+                      Icon(
+                        Icons.star_rounded,
+                        color: AppColors.star,
+                        size: layout.compact ? 18 : 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        person.ratingAvg.toStringAsFixed(1),
+                        style: TextStyle(
+                          color: AppColors.text,
+                          fontWeight: FontWeight.w800,
+                          fontSize: layout.font(16),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (person.languages.isNotEmpty) ...[
+                  SizedBox(height: layout.gap(12)),
+                  Text(
+                    'Languages:',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: layout.font(13),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: layout.gap(8)),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      for (final lang in person.languages)
+                        _LanguagePill(code: lang),
+                    ],
+                  ),
+                ],
+                SizedBox(height: layout.gap(14)),
+                _StatsStrip(
+                  sessions: person.sessionsTaught,
+                  reviews: person.ratingCount,
+                  styleLabel: styleLabel,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnlineBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.glass,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.glassBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.online,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Online',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _SkillChip extends StatelessWidget {
-  const _SkillChip({required this.label, required this.proficiency});
+class _StatsStrip extends StatelessWidget {
+  const _StatsStrip({
+    required this.sessions,
+    required this.reviews,
+    required this.styleLabel,
+  });
+
+  final int sessions;
+  final int reviews;
+  final String styleLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.cardElevated.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Row(
+        children: [
+          _StatCell(label: 'Sessions', value: '$sessions'),
+          _statDivider(),
+          _StatCell(label: 'Reviews', value: '$reviews'),
+          _statDivider(),
+          _StatCell(label: 'Interactive Style', value: styleLabel),
+        ],
+      ),
+    );
+  }
+
+  Widget _statDivider() {
+    return Container(
+      width: 1,
+      height: 36,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: AppColors.glassBorder,
+    );
+  }
+}
+
+class _StatCell extends StatelessWidget {
+  const _StatCell({required this.label, required this.value});
 
   final String label;
-  final int proficiency;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      label: Text('$label · ${proficiencyLabel(proficiency)}'),
-      backgroundColor: AppColors.bg,
-      side: const BorderSide(color: AppColors.cardEdge),
-      labelStyle: const TextStyle(color: AppColors.text, fontSize: 12),
-      padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
+    final layout = AppLayout.of(context);
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.text,
+              fontWeight: FontWeight.w800,
+              fontSize: layout.font(16),
+            ),
+          ),
+          SizedBox(height: layout.gap(4)),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: layout.font(10),
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.person});
+class _LanguagePill extends StatelessWidget {
+  const _LanguagePill({required this.code});
 
-  final Person person;
+  final String code;
 
   @override
   Widget build(BuildContext context) {
-    if (person.avatarUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 28,
-        backgroundImage: NetworkImage(person.avatarUrl),
-      );
-    }
-    final initial = person.displayName.isNotEmpty
-        ? person.displayName.trim()[0].toUpperCase()
-        : '?';
-    return CircleAvatar(
-      radius: 28,
-      backgroundColor: AppColors.magenta,
+    final layout = AppLayout.of(context);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: layout.compact ? 12 : 14,
+        vertical: layout.compact ? 6 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.cardElevated.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
       child: Text(
-        initial,
-        style: const TextStyle(
+        discoverLanguageLabel(code),
+        style: TextStyle(
           color: AppColors.text,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          fontSize: layout.font(13),
         ),
       ),
     );
+  }
+}
+
+class _SkillTag extends StatelessWidget {
+  const _SkillTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: layout.compact ? 12 : 16,
+        vertical: layout.compact ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.cardElevated.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: AppColors.text,
+          fontWeight: FontWeight.w600,
+          fontSize: layout.font(13),
+        ),
+      ),
+    );
+  }
+}
+
+String discoverLanguageLabel(String code) {
+  switch (code) {
+    case 'en':
+      return '🇬🇧  English';
+    case 'es':
+      return '🇪🇸  Spanish';
+    case 'hi':
+      return '🇮🇳  Hindi';
+    default:
+      return code;
   }
 }

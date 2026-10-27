@@ -34,7 +34,7 @@ func TestDiscoverLanguageMatchRanksFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	vid, _ := uuid.Parse(viewer.ID)
-	if err := s.UpdateProfile(ctx, vid, ProfilePatch{DisplayName: strPtr("Viewer"), Languages: []string{"en"}}); err != nil {
+	if err := s.UpdateProfile(ctx, vid, ProfilePatch{DisplayName: strPtr("Viewer"), Languages: []string{"en"}, Gender: strPtr("female")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ReplaceSkills(ctx, vid, []SkillLevel{{SkillID: learnOther, Proficiency: 3}}, []SkillLevel{{SkillID: skill, Proficiency: 2}}); err != nil {
@@ -55,7 +55,7 @@ func TestDiscoverLanguageMatchRanksFirst(t *testing.T) {
 		id, _ := uuid.Parse(u.ID)
 		langs := []string{lang}
 		name := lang
-		if err := s.UpdateProfile(ctx, id, ProfilePatch{DisplayName: &name, Languages: langs}); err != nil {
+		if err := s.UpdateProfile(ctx, id, ProfilePatch{DisplayName: &name, Languages: langs, Gender: strPtr("male")}); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.ReplaceSkills(ctx, id, []SkillLevel{{SkillID: skill, Proficiency: teachProf}}, []SkillLevel{{SkillID: learnOther, Proficiency: 2}}); err != nil {

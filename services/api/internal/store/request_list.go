@@ -7,13 +7,14 @@ import (
 )
 
 type RequestView struct {
-	ID              uuid.UUID `json:"id"`
-	Goal            string    `json:"goal"`
-	Status          string    `json:"status"`
-	SkillID         uuid.UUID `json:"skillId"`
-	SkillName       string    `json:"skillName"`
-	CounterpartID   uuid.UUID `json:"counterpartId"`
-	CounterpartName string    `json:"counterpartName"`
+	ID              uuid.UUID  `json:"id"`
+	Goal            string     `json:"goal"`
+	Status          string     `json:"status"`
+	SkillID         uuid.UUID  `json:"skillId"`
+	SkillName       string     `json:"skillName"`
+	CounterpartID   uuid.UUID  `json:"counterpartId"`
+	CounterpartName string     `json:"counterpartName"`
+	ChatThreadID    *uuid.UUID `json:"chatThreadId,omitempty"`
 }
 
 func (s *Store) ListRequests(ctx context.Context, userID uuid.UUID) (incoming, sent []RequestView, err error) {
@@ -21,11 +22,13 @@ func (s *Store) ListRequests(ctx context.Context, userID uuid.UUID) (incoming, s
 		SELECT r.id, r.goal, r.status, r.skill_id, sk.name,
 			CASE WHEN r.teacher_id = $1 THEN r.learner_id ELSE r.teacher_id END,
 			CASE WHEN r.teacher_id = $1 THEN ul.display_name ELSE ut.display_name END,
-			r.teacher_id = $1
+			r.teacher_id = $1,
+			ct.id
 		FROM swap_requests r
 		JOIN skills sk ON sk.id = r.skill_id
 		JOIN users ul ON ul.id = r.learner_id
 		JOIN users ut ON ut.id = r.teacher_id
+		LEFT JOIN chat_threads ct ON ct.request_id = r.id
 		WHERE r.teacher_id = $1 OR r.learner_id = $1
 		ORDER BY r.created_at DESC`, userID)
 	if err != nil {
@@ -35,10 +38,12 @@ func (s *Store) ListRequests(ctx context.Context, userID uuid.UUID) (incoming, s
 	for rows.Next() {
 		var v RequestView
 		var isIncoming bool
+		var chatID *uuid.UUID
 		if err := rows.Scan(&v.ID, &v.Goal, &v.Status, &v.SkillID, &v.SkillName,
-			&v.CounterpartID, &v.CounterpartName, &isIncoming); err != nil {
+			&v.CounterpartID, &v.CounterpartName, &isIncoming, &chatID); err != nil {
 			return nil, nil, err
 		}
+		v.ChatThreadID = chatID
 		if isIncoming {
 			incoming = append(incoming, v)
 		} else {

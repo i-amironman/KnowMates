@@ -12,6 +12,12 @@ type CatalogSkill struct {
 	Name string    `json:"name"`
 }
 
+func (s *Store) SkillName(ctx context.Context, skillID uuid.UUID) (string, error) {
+	var name string
+	err := s.pool.QueryRow(ctx, `SELECT name FROM skills WHERE id = $1`, skillID).Scan(&name)
+	return name, err
+}
+
 func (s *Store) ListSkills(ctx context.Context, q string) ([]CatalogSkill, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, slug, name FROM skills

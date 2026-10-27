@@ -94,6 +94,10 @@ func (s *Store) CreateRequest(ctx context.Context, learner, teacher, skill uuid.
 	return req, err
 }
 
+func (s *Store) GetRequest(ctx context.Context, id uuid.UUID) (Request, error) {
+	return s.loadRequest(ctx, id)
+}
+
 func (s *Store) loadRequest(ctx context.Context, id uuid.UUID) (Request, error) {
 	var req Request
 	err := s.pool.QueryRow(ctx, `
@@ -141,6 +145,11 @@ func (s *Store) SetRequestStatus(ctx context.Context, id, actor uuid.UUID, to st
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrConflict
+	}
+	if to == "accepted" {
+		if _, err := s.OpenChatForRequest(ctx, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
